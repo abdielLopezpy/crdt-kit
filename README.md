@@ -6,7 +6,7 @@
 
 [![Crates.io](https://img.shields.io/crates/v/crdt-kit.svg?style=for-the-badge&logo=rust)](https://crates.io/crates/crdt-kit)
 [![Docs.rs](https://img.shields.io/docsrs/crdt-kit?style=for-the-badge&logo=docs.rs)](https://docs.rs/crdt-kit)
-[![CI](https://img.shields.io/github/actions/workflow/status/abdielLopezpy/crdt-kit/ci.yml?style=for-the-badge&logo=github&label=CI)](https://github.com/abdielLopezpy/crdt-kit/actions)
+[![CI](https://img.shields.io/github/actions/workflow/status/abdielLopezpy/crdt-kit/ci.yml?branch=master&style=for-the-badge&logo=github&label=CI)](https://github.com/abdielLopezpy/crdt-kit/actions)
 [![License](https://img.shields.io/crates/l/crdt-kit.svg?style=for-the-badge)](LICENSE-MIT)
 
 [Docs](https://docs.rs/crdt-kit) | [Crate](https://crates.io/crates/crdt-kit) | [Examples](./examples) | [Contributing](CONTRIBUTING.md)
