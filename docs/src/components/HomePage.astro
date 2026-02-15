@@ -104,14 +104,14 @@ const codeMigration = [
 
 <!-- ===== WHAT ===== -->
 <section class="py-20 px-6" id="what">
-  <div class="max-w-6xl mx-auto grid md:grid-cols-2 gap-10 items-center">
-    <div class="space-y-4">
+  <div class="max-w-6xl mx-auto">
+    <div class="max-w-3xl mx-auto text-center space-y-4 mb-12">
       <h2 class="text-3xl font-extrabold tracking-tight">{t(lang, 'what.title')}</h2>
       <p class="text-text-dim leading-relaxed">{t(lang, 'what.p1')}</p>
       <p class="text-text-dim leading-relaxed">{t(lang, 'what.p2')}</p>
       <p class="text-text-dim leading-relaxed">{t(lang, 'what.p3')}</p>
     </div>
-    <MergeVisualization />
+    <MergeVisualization lang={lang} />
   </div>
 </section>
 
@@ -348,31 +348,41 @@ const codeMigration = [
   <div class="max-w-6xl mx-auto">
     <h2 class="text-3xl font-extrabold tracking-tight text-center mb-3">{t(lang, 'perf.title')}</h2>
     <p class="text-text-dim text-center max-w-xl mx-auto mb-10">{t(lang, 'perf.sub')}</p>
-    <div class="overflow-x-auto max-w-2xl mx-auto">
-      <table class="w-full text-sm">
-        <thead><tr class="border-b border-border">
-          <th class="text-left py-2 px-4 text-text-dim text-xs uppercase">Operation</th>
-          <th class="text-left py-2 px-4 text-text-dim text-xs uppercase">Time</th>
-          <th class="text-left py-2 px-4 text-text-dim text-xs uppercase">Throughput</th>
-        </tr></thead>
-        <tbody class="divide-y divide-border">
-          {[
-            ['GCounter increment x1000', '53 us', '~19M ops/sec'],
-            ['GCounter merge 10 replicas', '1.1 us', '~9M merges/sec'],
-            ['PNCounter inc+dec x1000', '60 us', '~16M ops/sec'],
-            ['ORSet insert x1000', '187 us', '~5M ops/sec'],
-            ['ORSet merge 500+500', '191 us', '\u2014'],
-            ['LWWRegister merge 100 replicas', '11.5 us', '~8M merges/sec'],
-          ].map(([op, time, tp]) => (
-            <tr>
-              <td class="py-2 px-4">{op}</td>
-              <td class="py-2 px-4 text-teal font-semibold">{time}</td>
-              <td class="py-2 px-4 text-text-dim">{tp}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+
+    <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+      {[
+        ['19M', 'ops/sec', 'GCounter increment',
+          lang === 'es' ? 'Incrementar un contador distribuido. Operación más común en IoT y analíticas.' : 'Incrementing a distributed counter. The most common operation in IoT and analytics.',
+          '53 μs / 1000 ops', 'teal'],
+        ['9M', 'merges/sec', 'GCounter merge',
+          lang === 'es' ? 'Fusionar 10 réplicas de un contador. Simula reconexión de 10 dispositivos.' : 'Merging 10 counter replicas. Simulates 10 devices reconnecting at once.',
+          '1.1 μs / 10 replicas', 'teal'],
+        ['16M', 'ops/sec', 'PNCounter inc+dec',
+          lang === 'es' ? 'Contador que soporta incremento y decremento. Ideal para inventarios y likes.' : 'Counter supporting increment & decrement. Ideal for inventory tracking and likes.',
+          '60 μs / 1000 ops', 'orange'],
+        ['5M', 'ops/sec', 'ORSet insert',
+          lang === 'es' ? 'Insertar en un conjunto replicado. Para carritos de compra, listas colaborativas.' : 'Inserting into a replicated set. For shopping carts, collaborative lists.',
+          '187 μs / 1000 ops', 'orange'],
+        ['191 μs', 'merge 500+500', 'ORSet merge',
+          lang === 'es' ? 'Fusionar dos conjuntos de 500 elementos cada uno. Peor caso realista.' : 'Merging two sets of 500 elements each. Realistic worst-case scenario.',
+          '1000 elements total', 'purple'],
+        ['8M', 'merges/sec', 'LWWRegister merge',
+          lang === 'es' ? 'Last-Writer-Wins: el valor más reciente gana. Para perfiles, configuración, GPS.' : 'Last-Writer-Wins: most recent value wins. For user profiles, config, GPS coordinates.',
+          '11.5 μs / 100 replicas', 'purple'],
+      ].map(([val, unit, title, desc, detail, color]) => (
+        <div class="bg-bg-card border border-border rounded-xl p-5 hover:border-text-dim transition-all">
+          <div class="flex items-baseline gap-1.5 mb-2">
+            <span class:list={['text-2xl font-extrabold tracking-tight', color === 'teal' ? 'text-teal' : color === 'orange' ? 'text-orange' : 'text-purple']}>{val}</span>
+            <span class="text-text-dim text-xs font-mono">{unit}</span>
+          </div>
+          <h3 class="font-bold text-sm mb-1.5">{title}</h3>
+          <p class="text-text-dim text-xs leading-relaxed mb-2">{desc}</p>
+          <span class="text-text-dim text-[10px] font-mono">{detail}</span>
+        </div>
+      ))}
     </div>
+
+    <p class="text-center text-text-dim text-xs">{lang === 'es' ? 'Medido con Criterion en builds optimizados (release). μs = microsegundos (millonésimas de segundo).' : 'Measured with Criterion on optimized (release) builds. μs = microseconds (millionths of a second).'}</p>
   </div>
 </section>
 

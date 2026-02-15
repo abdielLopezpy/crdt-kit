@@ -1,135 +1,170 @@
 ---
 /**
- * SVG visualization showing how CRDTs merge across devices.
- * Replaces the old ASCII art diagram in the "What are CRDTs?" section.
- * Shows 3 devices editing offline → merge → convergence.
+ * Large SVG visualization showing how CRDTs merge across devices.
+ * Full-width diagram: 3 devices editing offline → merge → all converge.
  */
+interface Props { lang?: string; }
+const { lang = 'en' } = Astro.props;
+const isEs = lang === 'es';
 ---
-<div class="merge-viz mx-auto select-none" aria-hidden="true">
-  <svg viewBox="0 0 560 340" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-full">
+<div class="merge-viz mx-auto select-none max-w-4xl" aria-hidden="true">
+  <svg viewBox="0 0 780 500" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-full">
     <defs>
       <filter id="mv-glow-t" x="-30%" y="-30%" width="160%" height="160%">
-        <feGaussianBlur stdDeviation="4" result="blur"/>
-        <feFlood flood-color="#00C9A7" flood-opacity="0.2"/>
+        <feGaussianBlur stdDeviation="5" result="blur"/>
+        <feFlood flood-color="#00C9A7" flood-opacity="0.25"/>
         <feComposite in2="blur" operator="in"/>
         <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
       </filter>
       <filter id="mv-glow-o" x="-30%" y="-30%" width="160%" height="160%">
-        <feGaussianBlur stdDeviation="4" result="blur"/>
-        <feFlood flood-color="#F7931A" flood-opacity="0.2"/>
+        <feGaussianBlur stdDeviation="5" result="blur"/>
+        <feFlood flood-color="#F7931A" flood-opacity="0.25"/>
         <feComposite in2="blur" operator="in"/>
         <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
       </filter>
       <filter id="mv-glow-p" x="-30%" y="-30%" width="160%" height="160%">
-        <feGaussianBlur stdDeviation="4" result="blur"/>
-        <feFlood flood-color="#A259FF" flood-opacity="0.2"/>
+        <feGaussianBlur stdDeviation="5" result="blur"/>
+        <feFlood flood-color="#A259FF" flood-opacity="0.25"/>
         <feComposite in2="blur" operator="in"/>
         <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
       </filter>
+      <pattern id="mv-grid" width="30" height="30" patternUnits="userSpaceOnUse">
+        <path d="M 30 0 L 0 0 0 30" fill="none" stroke="#30363D" stroke-width="0.3" opacity="0.3"/>
+      </pattern>
     </defs>
 
-    <!-- === ROW 1: Three devices editing offline === -->
+    <!-- Subtle grid background -->
+    <rect width="780" height="500" fill="url(#mv-grid)" opacity="0.2"/>
+
+    <!-- ===== STEP 1 LABEL ===== -->
+    <g transform="translate(30, 30)">
+      <circle r="14" cx="14" cy="14" fill="#00C9A7" opacity="0.1"/>
+      <text x="14" y="19" text-anchor="middle" fill="#00C9A7" font-size="14" font-weight="800" font-family="Inter, system-ui">1</text>
+      <text x="36" y="20" fill="#8B949E" font-size="13" font-weight="600" font-family="Inter, system-ui">{isEs ? 'Editar sin conexión' : 'Edit offline'}</text>
+    </g>
+
+    <!-- ===== ROW 1: Three devices editing offline ===== -->
     <!-- Device A -->
-    <g transform="translate(40, 20)">
-      <rect width="130" height="72" rx="10" fill="#1C2128" stroke="#00C9A7" stroke-width="1.5" filter="url(#mv-glow-t)"/>
-      <circle cx="16" cy="16" r="5" fill="#00C9A7" opacity="0.3"/>
-      <text x="28" y="20" fill="#00C9A7" font-size="10" font-weight="700" font-family="Inter, system-ui">Device A</text>
-      <text x="108" y="20" fill="#8B949E" font-size="7" font-family="JetBrains Mono, monospace" text-anchor="end">offline</text>
+    <g transform="translate(40, 60)">
+      <rect width="200" height="100" rx="12" fill="#1C2128" stroke="#00C9A7" stroke-width="2" filter="url(#mv-glow-t)"/>
+      <!-- Header -->
+      <rect x="0" y="0" width="200" height="30" rx="12" fill="#00C9A7" opacity="0.08"/>
+      <rect x="0" y="15" width="200" height="15" fill="#00C9A7" opacity="0.08"/>
+      <circle cx="18" cy="15" r="4" fill="#00C9A7" opacity="0.4"/>
+      <text x="30" y="19" fill="#00C9A7" font-size="12" font-weight="700" font-family="Inter, system-ui">{isEs ? 'Teléfono' : 'Phone'}</text>
+      <rect x="140" y="8" width="48" height="14" rx="7" fill="#FF5F57" opacity="0.15"/>
+      <text x="164" y="18" text-anchor="middle" fill="#FF5F57" font-size="8" font-weight="600" font-family="JetBrains Mono, monospace">offline</text>
       <!-- Data -->
-      <rect x="12" y="32" width="50" height="5" rx="2.5" fill="#00C9A7" opacity="0.5"/>
-      <rect x="12" y="42" width="70" height="5" rx="2.5" fill="#00C9A7" opacity="0.3"/>
-      <rect x="12" y="52" width="35" height="5" rx="2.5" fill="#00C9A7" opacity="0.6" class="mv-data"/>
-      <text x="110" y="58" fill="#00C9A7" font-size="8" font-weight="bold" font-family="JetBrains Mono, monospace" text-anchor="end" class="mv-count-a">count: 5</text>
+      <rect x="16" y="40" width="80" height="6" rx="3" fill="#00C9A7" opacity="0.5"/>
+      <rect x="16" y="52" width="120" height="6" rx="3" fill="#00C9A7" opacity="0.3"/>
+      <rect x="16" y="64" width="55" height="6" rx="3" fill="#00C9A7" opacity="0.6" class="mv-data"/>
+      <!-- Counter -->
+      <rect x="120" y="74" width="65" height="18" rx="9" fill="#00C9A7" opacity="0.1"/>
+      <text x="152" y="87" text-anchor="middle" fill="#00C9A7" font-size="11" font-weight="bold" font-family="JetBrains Mono, monospace" class="mv-count-a">count: 5</text>
     </g>
 
     <!-- Device B -->
-    <g transform="translate(215, 20)">
-      <rect width="130" height="72" rx="10" fill="#1C2128" stroke="#F7931A" stroke-width="1.5" filter="url(#mv-glow-o)"/>
-      <circle cx="16" cy="16" r="5" fill="#F7931A" opacity="0.3"/>
-      <text x="28" y="20" fill="#F7931A" font-size="10" font-weight="700" font-family="Inter, system-ui">Device B</text>
-      <text x="108" y="20" fill="#8B949E" font-size="7" font-family="JetBrains Mono, monospace" text-anchor="end">offline</text>
-      <rect x="12" y="32" width="60" height="5" rx="2.5" fill="#F7931A" opacity="0.5"/>
-      <rect x="12" y="42" width="40" height="5" rx="2.5" fill="#F7931A" opacity="0.3"/>
-      <rect x="12" y="52" width="55" height="5" rx="2.5" fill="#F7931A" opacity="0.6" class="mv-data"/>
-      <text x="110" y="58" fill="#F7931A" font-size="8" font-weight="bold" font-family="JetBrains Mono, monospace" text-anchor="end" class="mv-count-b">count: 3</text>
+    <g transform="translate(290, 60)">
+      <rect width="200" height="100" rx="12" fill="#1C2128" stroke="#F7931A" stroke-width="2" filter="url(#mv-glow-o)"/>
+      <rect x="0" y="0" width="200" height="30" rx="12" fill="#F7931A" opacity="0.08"/>
+      <rect x="0" y="15" width="200" height="15" fill="#F7931A" opacity="0.08"/>
+      <circle cx="18" cy="15" r="4" fill="#F7931A" opacity="0.4"/>
+      <text x="30" y="19" fill="#F7931A" font-size="12" font-weight="700" font-family="Inter, system-ui">Laptop</text>
+      <rect x="140" y="8" width="48" height="14" rx="7" fill="#FF5F57" opacity="0.15"/>
+      <text x="164" y="18" text-anchor="middle" fill="#FF5F57" font-size="8" font-weight="600" font-family="JetBrains Mono, monospace">offline</text>
+      <rect x="16" y="40" width="100" height="6" rx="3" fill="#F7931A" opacity="0.5"/>
+      <rect x="16" y="52" width="60" height="6" rx="3" fill="#F7931A" opacity="0.3"/>
+      <rect x="16" y="64" width="90" height="6" rx="3" fill="#F7931A" opacity="0.6" class="mv-data"/>
+      <rect x="120" y="74" width="65" height="18" rx="9" fill="#F7931A" opacity="0.1"/>
+      <text x="152" y="87" text-anchor="middle" fill="#F7931A" font-size="11" font-weight="bold" font-family="JetBrains Mono, monospace" class="mv-count-b">count: 3</text>
     </g>
 
     <!-- Device C -->
-    <g transform="translate(390, 20)">
-      <rect width="130" height="72" rx="10" fill="#1C2128" stroke="#A259FF" stroke-width="1.5" filter="url(#mv-glow-p)"/>
-      <circle cx="16" cy="16" r="5" fill="#A259FF" opacity="0.3"/>
-      <text x="28" y="20" fill="#A259FF" font-size="10" font-weight="700" font-family="Inter, system-ui">Device C</text>
-      <text x="108" y="20" fill="#8B949E" font-size="7" font-family="JetBrains Mono, monospace" text-anchor="end">offline</text>
-      <rect x="12" y="32" width="45" height="5" rx="2.5" fill="#A259FF" opacity="0.5"/>
-      <rect x="12" y="42" width="65" height="5" rx="2.5" fill="#A259FF" opacity="0.3"/>
-      <rect x="12" y="52" width="30" height="5" rx="2.5" fill="#A259FF" opacity="0.6" class="mv-data"/>
-      <text x="110" y="58" fill="#A259FF" font-size="8" font-weight="bold" font-family="JetBrains Mono, monospace" text-anchor="end" class="mv-count-c">count: 2</text>
+    <g transform="translate(540, 60)">
+      <rect width="200" height="100" rx="12" fill="#1C2128" stroke="#A259FF" stroke-width="2" filter="url(#mv-glow-p)"/>
+      <rect x="0" y="0" width="200" height="30" rx="12" fill="#A259FF" opacity="0.08"/>
+      <rect x="0" y="15" width="200" height="15" fill="#A259FF" opacity="0.08"/>
+      <circle cx="18" cy="15" r="4" fill="#A259FF" opacity="0.4"/>
+      <text x="30" y="19" fill="#A259FF" font-size="12" font-weight="700" font-family="Inter, system-ui">{isEs ? 'Sensor IoT' : 'IoT Sensor'}</text>
+      <rect x="140" y="8" width="48" height="14" rx="7" fill="#FF5F57" opacity="0.15"/>
+      <text x="164" y="18" text-anchor="middle" fill="#FF5F57" font-size="8" font-weight="600" font-family="JetBrains Mono, monospace">offline</text>
+      <rect x="16" y="40" width="70" height="6" rx="3" fill="#A259FF" opacity="0.5"/>
+      <rect x="16" y="52" width="110" height="6" rx="3" fill="#A259FF" opacity="0.3"/>
+      <rect x="16" y="64" width="45" height="6" rx="3" fill="#A259FF" opacity="0.6" class="mv-data"/>
+      <rect x="120" y="74" width="65" height="18" rx="9" fill="#A259FF" opacity="0.1"/>
+      <text x="152" y="87" text-anchor="middle" fill="#A259FF" font-size="11" font-weight="bold" font-family="JetBrains Mono, monospace" class="mv-count-c">count: 2</text>
     </g>
 
-    <!-- === ARROWS DOWN === -->
-    <g class="mv-arrows-down">
-      <line x1="105" y1="96" x2="105" y2="128" stroke="#00C9A7" stroke-width="1.5" stroke-dasharray="4 3" class="mv-arrow"/>
-      <polygon points="100,126 105,136 110,126" fill="#00C9A7" opacity="0.7" class="mv-arrowhead"/>
-
-      <line x1="280" y1="96" x2="280" y2="128" stroke="#F7931A" stroke-width="1.5" stroke-dasharray="4 3" class="mv-arrow"/>
-      <polygon points="275,126 280,136 285,126" fill="#F7931A" opacity="0.7" class="mv-arrowhead"/>
-
-      <line x1="455" y1="96" x2="455" y2="128" stroke="#A259FF" stroke-width="1.5" stroke-dasharray="4 3" class="mv-arrow"/>
-      <polygon points="450,126 455,136 460,126" fill="#A259FF" opacity="0.7" class="mv-arrowhead"/>
+    <!-- State vectors below devices -->
+    <g transform="translate(40, 175)">
+      <rect width="200" height="28" rx="8" fill="#0D1117" stroke="#00C9A7" stroke-width="1" opacity="0.7"/>
+      <text x="100" y="19" text-anchor="middle" fill="#00C9A7" font-size="12" font-weight="600" font-family="JetBrains Mono, monospace">{`{ a:5, b:0, c:0 }`}</text>
+    </g>
+    <g transform="translate(290, 175)">
+      <rect width="200" height="28" rx="8" fill="#0D1117" stroke="#F7931A" stroke-width="1" opacity="0.7"/>
+      <text x="100" y="19" text-anchor="middle" fill="#F7931A" font-size="12" font-weight="600" font-family="JetBrains Mono, monospace">{`{ a:0, b:3, c:0 }`}</text>
+    </g>
+    <g transform="translate(540, 175)">
+      <rect width="200" height="28" rx="8" fill="#0D1117" stroke="#A259FF" stroke-width="1" opacity="0.7"/>
+      <text x="100" y="19" text-anchor="middle" fill="#A259FF" font-size="12" font-weight="600" font-family="JetBrains Mono, monospace">{`{ a:0, b:0, c:2 }`}</text>
     </g>
 
-    <!-- === ROW 2: Merge operation === -->
-    <!-- Converging lines to merge node -->
+    <!-- ===== STEP 2 LABEL ===== -->
+    <g transform="translate(30, 225)">
+      <circle r="14" cx="14" cy="14" fill="#F7931A" opacity="0.1"/>
+      <text x="14" y="19" text-anchor="middle" fill="#F7931A" font-size="14" font-weight="800" font-family="Inter, system-ui">2</text>
+      <text x="36" y="20" fill="#8B949E" font-size="13" font-weight="600" font-family="Inter, system-ui">{isEs ? 'Reconectar y sincronizar' : 'Reconnect & sync'}</text>
+    </g>
+
+    <!-- ===== CONVERGING ARROWS ===== -->
     <g class="mv-converge">
-      <path d="M105 170 Q180 205 260 210" stroke="#00C9A7" stroke-width="1.5" stroke-dasharray="5 3" opacity="0.5" fill="none" class="mv-conv-line"/>
-      <path d="M280 170 L280 200" stroke="#F7931A" stroke-width="1.5" stroke-dasharray="5 3" opacity="0.5" fill="none" class="mv-conv-line"/>
-      <path d="M455 170 Q380 205 300 210" stroke="#A259FF" stroke-width="1.5" stroke-dasharray="5 3" opacity="0.5" fill="none" class="mv-conv-line"/>
+      <path d="M140 215 Q250 280 365 305" stroke="#00C9A7" stroke-width="2" stroke-dasharray="6 4" opacity="0.5" fill="none" class="mv-conv-line"/>
+      <path d="M390 215 L390 295" stroke="#F7931A" stroke-width="2" stroke-dasharray="6 4" opacity="0.5" fill="none" class="mv-conv-line"/>
+      <path d="M640 215 Q530 280 415 305" stroke="#A259FF" stroke-width="2" stroke-dasharray="6 4" opacity="0.5" fill="none" class="mv-conv-line"/>
     </g>
 
-    <!-- State boxes showing local data -->
-    <g transform="translate(55, 140)">
-      <rect width="100" height="28" rx="6" fill="#0D1117" stroke="#00C9A7" stroke-width="1" opacity="0.6"/>
-      <text x="50" y="18" text-anchor="middle" fill="#00C9A7" font-size="8" font-family="JetBrains Mono, monospace">{`{a:5, b:0, c:0}`}</text>
+    <!-- Data packets flying -->
+    <circle r="6" fill="#00C9A7" opacity="0" class="mv-pkt mv-pkt-1" filter="url(#mv-glow-t)"/>
+    <circle r="6" fill="#F7931A" opacity="0" class="mv-pkt mv-pkt-2" filter="url(#mv-glow-o)"/>
+    <circle r="6" fill="#A259FF" opacity="0" class="mv-pkt mv-pkt-3" filter="url(#mv-glow-p)"/>
+
+    <!-- ===== MERGE NODE ===== -->
+    <g transform="translate(390, 318)" class="mv-merge-node">
+      <circle r="30" fill="#1C2128" stroke="#00C9A7" stroke-width="2.5" class="mv-merge-ring"/>
+      <path d="M-9 -6 L0 3 L9 -6" stroke="#00C9A7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <path d="M-9 2 L0 11 L9 2" stroke="#00C9A7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.5"/>
     </g>
-    <g transform="translate(230, 140)">
-      <rect width="100" height="28" rx="6" fill="#0D1117" stroke="#F7931A" stroke-width="1" opacity="0.6"/>
-      <text x="50" y="18" text-anchor="middle" fill="#F7931A" font-size="8" font-family="JetBrains Mono, monospace">{`{a:0, b:3, c:0}`}</text>
-    </g>
-    <g transform="translate(405, 140)">
-      <rect width="100" height="28" rx="6" fill="#0D1117" stroke="#A259FF" stroke-width="1" opacity="0.6"/>
-      <text x="50" y="18" text-anchor="middle" fill="#A259FF" font-size="8" font-family="JetBrains Mono, monospace">{`{a:0, b:0, c:2}`}</text>
+    <text x="390" y="362" text-anchor="middle" fill="#00C9A7" font-size="12" font-weight="bold" font-family="JetBrains Mono, monospace" class="mv-merge-label">merge()</text>
+
+    <!-- ===== DIVERGING ARROWS ===== -->
+    <g class="mv-diverge">
+      <path d="M365 340 Q250 375 140 395" stroke="#00C9A7" stroke-width="2" stroke-dasharray="6 4" opacity="0.5" fill="none" class="mv-conv-line"/>
+      <line x1="390" y1="348" x2="390" y2="390" stroke="#F7931A" stroke-width="2" stroke-dasharray="6 4" opacity="0.5" class="mv-conv-line"/>
+      <path d="M415 340 Q530 375 640 395" stroke="#A259FF" stroke-width="2" stroke-dasharray="6 4" opacity="0.5" fill="none" class="mv-conv-line"/>
     </g>
 
-    <!-- Merge node -->
-    <g transform="translate(280, 218)" class="mv-merge-node">
-      <circle r="22" fill="#1C2128" stroke="#00C9A7" stroke-width="2" class="mv-merge-ring"/>
-      <text y="4" text-anchor="middle" fill="#00C9A7" font-size="9" font-weight="bold" font-family="JetBrains Mono, monospace">merge</text>
+    <!-- ===== STEP 3 LABEL ===== -->
+    <g transform="translate(30, 390)">
+      <circle r="14" cx="14" cy="14" fill="#7EE787" opacity="0.1"/>
+      <text x="14" y="19" text-anchor="middle" fill="#7EE787" font-size="14" font-weight="800" font-family="Inter, system-ui">3</text>
+      <text x="36" y="20" fill="#8B949E" font-size="13" font-weight="600" font-family="Inter, system-ui">{isEs ? 'Convergencia automática' : 'Automatic convergence'}</text>
     </g>
 
-    <!-- === ARROWS DOWN from merge === -->
-    <g class="mv-arrows-out">
-      <path d="M260 240 Q180 265 105 270" stroke="#00C9A7" stroke-width="1.5" stroke-dasharray="5 3" opacity="0.5" fill="none" class="mv-conv-line"/>
-      <line x1="280" y1="240" x2="280" y2="270" stroke="#F7931A" stroke-width="1.5" stroke-dasharray="5 3" opacity="0.5" class="mv-conv-line"/>
-      <path d="M300 240 Q380 265 455 270" stroke="#A259FF" stroke-width="1.5" stroke-dasharray="5 3" opacity="0.5" fill="none" class="mv-conv-line"/>
+    <!-- ===== ROW 3: All converged ===== -->
+    <g transform="translate(40, 420)">
+      <rect width="200" height="55" rx="12" fill="#1C2128" stroke="#00C9A7" stroke-width="2" filter="url(#mv-glow-t)"/>
+      <text x="100" y="23" text-anchor="middle" fill="#00C9A7" font-size="12" font-weight="700" font-family="JetBrains Mono, monospace">{`{ a:5, b:3, c:2 }`}</text>
+      <text x="100" y="43" text-anchor="middle" fill="#7EE787" font-size="14" font-weight="800" font-family="Inter, system-ui" class="mv-converged">= 10 ✓</text>
     </g>
-
-    <!-- === ROW 3: Converged result === -->
-    <g transform="translate(30, 274)">
-      <rect width="150" height="48" rx="10" fill="#1C2128" stroke="#00C9A7" stroke-width="1.5" filter="url(#mv-glow-t)"/>
-      <text x="75" y="20" text-anchor="middle" fill="#00C9A7" font-size="9" font-weight="700" font-family="JetBrains Mono, monospace">{`{a:5, b:3, c:2}`}</text>
-      <text x="75" y="36" text-anchor="middle" fill="#00C9A7" font-size="11" font-weight="800" font-family="Inter, system-ui" class="mv-converged">= 10 ✓</text>
+    <g transform="translate(290, 420)">
+      <rect width="200" height="55" rx="12" fill="#1C2128" stroke="#F7931A" stroke-width="2" filter="url(#mv-glow-o)"/>
+      <text x="100" y="23" text-anchor="middle" fill="#F7931A" font-size="12" font-weight="700" font-family="JetBrains Mono, monospace">{`{ a:5, b:3, c:2 }`}</text>
+      <text x="100" y="43" text-anchor="middle" fill="#7EE787" font-size="14" font-weight="800" font-family="Inter, system-ui" class="mv-converged">= 10 ✓</text>
     </g>
-
-    <g transform="translate(205, 274)">
-      <rect width="150" height="48" rx="10" fill="#1C2128" stroke="#F7931A" stroke-width="1.5" filter="url(#mv-glow-o)"/>
-      <text x="75" y="20" text-anchor="middle" fill="#F7931A" font-size="9" font-weight="700" font-family="JetBrains Mono, monospace">{`{a:5, b:3, c:2}`}</text>
-      <text x="75" y="36" text-anchor="middle" fill="#F7931A" font-size="11" font-weight="800" font-family="Inter, system-ui" class="mv-converged">= 10 ✓</text>
-    </g>
-
-    <g transform="translate(380, 274)">
-      <rect width="150" height="48" rx="10" fill="#1C2128" stroke="#A259FF" stroke-width="1.5" filter="url(#mv-glow-p)"/>
-      <text x="75" y="20" text-anchor="middle" fill="#A259FF" font-size="9" font-weight="700" font-family="JetBrains Mono, monospace">{`{a:5, b:3, c:2}`}</text>
-      <text x="75" y="36" text-anchor="middle" fill="#A259FF" font-size="11" font-weight="800" font-family="Inter, system-ui" class="mv-converged">= 10 ✓</text>
+    <g transform="translate(540, 420)">
+      <rect width="200" height="55" rx="12" fill="#1C2128" stroke="#A259FF" stroke-width="2" filter="url(#mv-glow-p)"/>
+      <text x="100" y="23" text-anchor="middle" fill="#A259FF" font-size="12" font-weight="700" font-family="JetBrains Mono, monospace">{`{ a:5, b:3, c:2 }`}</text>
+      <text x="100" y="43" text-anchor="middle" fill="#7EE787" font-size="14" font-weight="800" font-family="Inter, system-ui" class="mv-converged">= 10 ✓</text>
     </g>
   </svg>
 </div>
@@ -141,20 +176,23 @@
     50% { opacity: 0.8; }
   }
 
-  .mv-arrow { animation: da-dash 1.5s linear infinite; }
-  @keyframes da-dash { to { stroke-dashoffset: -14; } }
-
   .mv-conv-line { animation: mv-flow 2s linear infinite; }
-  @keyframes mv-flow { to { stroke-dashoffset: -16; } }
+  @keyframes mv-flow { to { stroke-dashoffset: -20; } }
 
-  .mv-merge-ring { animation: mv-merge-pulse 3s ease-in-out infinite; }
+  .mv-merge-ring { animation: mv-merge-pulse 4s ease-in-out infinite; }
   @keyframes mv-merge-pulse {
     0%, 100% { stroke: #00C9A7; }
     33% { stroke: #F7931A; }
     66% { stroke: #A259FF; }
   }
 
-  .mv-converged { animation: mv-glow-text 2s ease-in-out infinite; }
+  .mv-merge-label { animation: mv-label-blink 4s ease-in-out infinite; }
+  @keyframes mv-label-blink {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+  }
+
+  .mv-converged { animation: mv-glow-text 2.5s ease-in-out infinite; }
   @keyframes mv-glow-text {
     0%, 100% { opacity: 0.7; }
     50% { opacity: 1; }
@@ -168,5 +206,30 @@
   @keyframes mv-count-pulse {
     0%, 100% { opacity: 0.6; }
     50% { opacity: 1; }
+  }
+
+  .mv-pkt-1 { animation: mv-fly-1 4s ease-in-out infinite; }
+  .mv-pkt-2 { animation: mv-fly-2 4s ease-in-out infinite 1.3s; }
+  .mv-pkt-3 { animation: mv-fly-3 4s ease-in-out infinite 2.6s; }
+  @keyframes mv-fly-1 {
+    0% { cx: 140; cy: 215; opacity: 0; }
+    10% { opacity: 0.9; }
+    50% { cx: 365; cy: 305; opacity: 0.9; }
+    60% { opacity: 0; }
+    100% { cx: 365; cy: 305; opacity: 0; }
+  }
+  @keyframes mv-fly-2 {
+    0% { cx: 390; cy: 215; opacity: 0; }
+    10% { opacity: 0.9; }
+    50% { cx: 390; cy: 295; opacity: 0.9; }
+    60% { opacity: 0; }
+    100% { cx: 390; cy: 295; opacity: 0; }
+  }
+  @keyframes mv-fly-3 {
+    0% { cx: 640; cy: 215; opacity: 0; }
+    10% { opacity: 0.9; }
+    50% { cx: 415; cy: 305; opacity: 0.9; }
+    60% { opacity: 0; }
+    100% { cx: 415; cy: 305; opacity: 0; }
   }
 </style>

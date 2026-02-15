@@ -1,472 +1,344 @@
 ---
 /**
- * Rich animated SVG showing three devices (phone, laptop, IoT sensor)
- * working offline, editing data, then syncing and converging.
- * Multi-phase CSS animation cycle: offline → editing → sync → converged.
+ * Animated SVG showing three devices syncing via CRDTs.
+ * Clear narrative: each device edits data offline, data flows to merge hub,
+ * all devices converge. Uses labeled phases and clear visual cues.
  */
 ---
-<div class="device-anim mx-auto max-w-3xl select-none" aria-hidden="true">
-  <svg viewBox="0 0 800 420" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-full">
+<div class="device-anim mx-auto max-w-4xl select-none" aria-hidden="true">
+  <svg viewBox="0 0 900 380" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-full">
     <defs>
-      <!-- Grid pattern -->
       <pattern id="da-grid" width="40" height="40" patternUnits="userSpaceOnUse">
-        <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#30363D" stroke-width="0.4" opacity="0.3"/>
+        <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#30363D" stroke-width="0.3" opacity="0.25"/>
       </pattern>
-
-      <!-- Glowing gradients -->
-      <linearGradient id="da-line-teal" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stop-color="#00C9A7" stop-opacity="0.9"/>
-        <stop offset="100%" stop-color="#00C9A7" stop-opacity="0.15"/>
-      </linearGradient>
-      <linearGradient id="da-line-orange" x1="100%" y1="0%" x2="0%" y2="100%">
-        <stop offset="0%" stop-color="#F7931A" stop-opacity="0.9"/>
-        <stop offset="100%" stop-color="#F7931A" stop-opacity="0.15"/>
-      </linearGradient>
-      <linearGradient id="da-line-purple" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%" stop-color="#A259FF" stop-opacity="0.6"/>
-        <stop offset="50%" stop-color="#A259FF" stop-opacity="0.9"/>
-        <stop offset="100%" stop-color="#A259FF" stop-opacity="0.6"/>
-      </linearGradient>
-      <radialGradient id="da-glow-teal" cx="50%" cy="50%" r="50%">
-        <stop offset="0%" stop-color="#00C9A7" stop-opacity="0.2"/>
+      <radialGradient id="da-glow-t" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#00C9A7" stop-opacity="0.15"/>
         <stop offset="100%" stop-color="#00C9A7" stop-opacity="0"/>
       </radialGradient>
-      <radialGradient id="da-glow-orange" cx="50%" cy="50%" r="50%">
-        <stop offset="0%" stop-color="#F7931A" stop-opacity="0.2"/>
+      <radialGradient id="da-glow-o" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#F7931A" stop-opacity="0.15"/>
         <stop offset="100%" stop-color="#F7931A" stop-opacity="0"/>
       </radialGradient>
-      <radialGradient id="da-glow-purple" cx="50%" cy="50%" r="50%">
-        <stop offset="0%" stop-color="#A259FF" stop-opacity="0.2"/>
+      <radialGradient id="da-glow-p" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#A259FF" stop-opacity="0.15"/>
         <stop offset="100%" stop-color="#A259FF" stop-opacity="0"/>
       </radialGradient>
-
-      <!-- Glow filters -->
-      <filter id="da-filt-teal" x="-50%" y="-50%" width="200%" height="200%">
-        <feGaussianBlur stdDeviation="6" result="blur"/>
-        <feFlood flood-color="#00C9A7" flood-opacity="0.25"/>
+      <filter id="da-ft" x="-40%" y="-40%" width="180%" height="180%">
+        <feGaussianBlur stdDeviation="5" result="blur"/>
+        <feFlood flood-color="#00C9A7" flood-opacity="0.2"/>
         <feComposite in2="blur" operator="in"/>
         <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
       </filter>
-      <filter id="da-filt-orange" x="-50%" y="-50%" width="200%" height="200%">
-        <feGaussianBlur stdDeviation="6" result="blur"/>
-        <feFlood flood-color="#F7931A" flood-opacity="0.25"/>
+      <filter id="da-fo" x="-40%" y="-40%" width="180%" height="180%">
+        <feGaussianBlur stdDeviation="5" result="blur"/>
+        <feFlood flood-color="#F7931A" flood-opacity="0.2"/>
         <feComposite in2="blur" operator="in"/>
         <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
       </filter>
-      <filter id="da-filt-purple" x="-50%" y="-50%" width="200%" height="200%">
-        <feGaussianBlur stdDeviation="6" result="blur"/>
-        <feFlood flood-color="#A259FF" flood-opacity="0.25"/>
+      <filter id="da-fp" x="-40%" y="-40%" width="180%" height="180%">
+        <feGaussianBlur stdDeviation="5" result="blur"/>
+        <feFlood flood-color="#A259FF" flood-opacity="0.2"/>
         <feComposite in2="blur" operator="in"/>
         <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
       </filter>
-      <filter id="da-filt-merge" x="-50%" y="-50%" width="200%" height="200%">
-        <feGaussianBlur stdDeviation="10" result="blur"/>
-        <feFlood flood-color="#00C9A7" flood-opacity="0.15"/>
-        <feComposite in2="blur" operator="in"/>
-        <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
-      </filter>
-
-      <!-- Animated gradient for connection lines -->
-      <linearGradient id="da-flow-teal" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%" stop-color="#00C9A7" stop-opacity="0">
-          <animate attributeName="stop-opacity" values="0;0.8;0" dur="3s" repeatCount="indefinite"/>
-        </stop>
-        <stop offset="50%" stop-color="#00C9A7" stop-opacity="0.8">
-          <animate attributeName="stop-opacity" values="0.8;0.3;0.8" dur="3s" repeatCount="indefinite"/>
-        </stop>
-        <stop offset="100%" stop-color="#00C9A7" stop-opacity="0">
-          <animate attributeName="stop-opacity" values="0;0.8;0" dur="3s" repeatCount="indefinite" begin="1.5s"/>
-        </stop>
-      </linearGradient>
     </defs>
 
-    <!-- Background -->
-    <rect width="800" height="420" fill="url(#da-grid)" opacity="0.3"/>
+    <rect width="900" height="380" fill="url(#da-grid)" opacity="0.3"/>
 
-    <!-- Ambient glow circles behind devices -->
-    <circle cx="160" cy="145" r="90" fill="url(#da-glow-teal)" class="da-ambient-a"/>
-    <circle cx="640" cy="145" r="90" fill="url(#da-glow-orange)" class="da-ambient-b"/>
-    <circle cx="400" cy="330" r="90" fill="url(#da-glow-purple)" class="da-ambient-c"/>
+    <!-- Ambient glows -->
+    <circle cx="150" cy="165" r="110" fill="url(#da-glow-t)" class="da-ambient"/>
+    <circle cx="450" cy="165" r="110" fill="url(#da-glow-o)" class="da-ambient da-ambient-2"/>
+    <circle cx="750" cy="165" r="110" fill="url(#da-glow-p)" class="da-ambient da-ambient-3"/>
 
-    <!-- ===== CONNECTION PATHS (curved, animated) ===== -->
+    <!-- ===== CONNECTION LINES ===== -->
     <g class="da-connections">
-      <!-- Phone → Merge hub -->
-      <path d="M210 165 Q300 240 370 265" stroke="#00C9A7" stroke-width="1.5" stroke-dasharray="8 4" opacity="0.4" class="da-conn da-conn-1" fill="none"/>
-      <!-- Laptop → Merge hub -->
-      <path d="M590 165 Q500 240 430 265" stroke="#F7931A" stroke-width="1.5" stroke-dasharray="8 4" opacity="0.4" class="da-conn da-conn-2" fill="none"/>
-      <!-- IoT → Merge hub -->
-      <path d="M400 330 L400 290" stroke="#A259FF" stroke-width="1.5" stroke-dasharray="8 4" opacity="0.4" class="da-conn da-conn-3" fill="none"/>
-      <!-- Phone → Laptop (top arc) -->
-      <path d="M220 90 Q400 30 580 90" stroke="#A259FF" stroke-width="1" stroke-dasharray="6 6" opacity="0.25" class="da-conn da-conn-4" fill="none"/>
+      <!-- Phone → Center hub -->
+      <path d="M240 190 Q340 240 410 280" stroke="#00C9A7" stroke-width="1.5" stroke-dasharray="7 4" opacity="0.35" class="da-conn" fill="none"/>
+      <!-- Laptop → Center hub -->
+      <path d="M450 220 L450 270" stroke="#F7931A" stroke-width="1.5" stroke-dasharray="7 4" opacity="0.35" class="da-conn da-conn-2" fill="none"/>
+      <!-- IoT → Center hub -->
+      <path d="M660 190 Q560 240 490 280" stroke="#A259FF" stroke-width="1.5" stroke-dasharray="7 4" opacity="0.35" class="da-conn da-conn-3" fill="none"/>
+      <!-- Cross links -->
+      <path d="M240 120 Q450 60 660 120" stroke="#30363D" stroke-width="1" stroke-dasharray="4 6" opacity="0.2" class="da-conn da-conn-4" fill="none"/>
     </g>
 
     <!-- ===== PHONE (left) ===== -->
-    <g class="da-dev da-dev-a" transform="translate(100, 60)">
+    <g class="da-dev da-dev-a" transform="translate(85, 55)">
       <!-- Phone body -->
-      <rect x="20" y="0" width="80" height="140" rx="12" fill="#1C2128" stroke="#00C9A7" stroke-width="2" filter="url(#da-filt-teal)"/>
+      <rect x="15" y="0" width="100" height="170" rx="16" fill="#1C2128" stroke="#00C9A7" stroke-width="2" filter="url(#da-ft)"/>
       <!-- Screen -->
-      <rect x="28" y="16" width="64" height="98" rx="4" fill="#0D1117"/>
+      <rect x="23" y="20" width="84" height="120" rx="4" fill="#0D1117"/>
       <!-- Notch -->
-      <rect x="46" y="6" width="28" height="5" rx="2.5" fill="#30363D"/>
-      <!-- Home indicator -->
-      <rect x="44" y="124" width="32" height="4" rx="2" fill="#30363D"/>
+      <rect x="44" y="6" width="42" height="7" rx="3.5" fill="#30363D"/>
+      <!-- Home bar -->
+      <rect x="48" y="152" width="34" height="5" rx="2.5" fill="#30363D"/>
 
-      <!-- Screen content: data lines (animated typing) -->
-      <g class="da-screen-content-a">
-        <rect x="34" y="26" width="30" height="4" rx="2" fill="#00C9A7" opacity="0.7" class="da-data da-data-1"/>
-        <rect x="34" y="36" width="45" height="4" rx="2" fill="#00C9A7" opacity="0.5" class="da-data da-data-2"/>
-        <rect x="34" y="46" width="22" height="4" rx="2" fill="#00C9A7" opacity="0.4" class="da-data da-data-3"/>
-        <rect x="34" y="56" width="38" height="4" rx="2" fill="#00C9A7" opacity="0.6" class="da-data da-data-4"/>
-        <rect x="34" y="66" width="28" height="4" rx="2" fill="#00C9A7" opacity="0.3" class="da-data da-data-5"/>
-        <!-- Cursor blink -->
-        <rect x="34" y="78" width="2" height="10" fill="#00C9A7" class="da-cursor da-cursor-a"/>
-        <!-- Counter badge -->
-        <g class="da-badge-a">
-          <rect x="58" y="88" width="30" height="16" rx="8" fill="#00C9A7" opacity="0.15"/>
-          <text x="73" y="99" text-anchor="middle" fill="#00C9A7" font-size="8" font-weight="bold" font-family="JetBrains Mono, monospace">+5</text>
-        </g>
+      <!-- Screen content -->
+      <g class="da-screen-a">
+        <!-- App header bar -->
+        <rect x="27" y="25" width="76" height="12" rx="2" fill="#00C9A7" opacity="0.08"/>
+        <rect x="30" y="29" width="30" height="4" rx="2" fill="#00C9A7" opacity="0.5"/>
+        <!-- List items -->
+        <rect x="27" y="43" width="76" height="18" rx="3" fill="#00C9A7" opacity="0.05"/>
+        <rect x="32" y="48" width="40" height="4" rx="2" fill="#00C9A7" opacity="0.5" class="da-data da-data-1"/>
+        <rect x="32" y="55" width="55" height="3" rx="1.5" fill="#00C9A7" opacity="0.25"/>
+        <rect x="27" y="65" width="76" height="18" rx="3" fill="#00C9A7" opacity="0.05"/>
+        <rect x="32" y="70" width="50" height="4" rx="2" fill="#00C9A7" opacity="0.4" class="da-data da-data-2"/>
+        <rect x="32" y="77" width="35" height="3" rx="1.5" fill="#00C9A7" opacity="0.2"/>
+        <rect x="27" y="87" width="76" height="18" rx="3" fill="#00C9A7" opacity="0.05"/>
+        <rect x="32" y="92" width="45" height="4" rx="2" fill="#00C9A7" opacity="0.6" class="da-data da-data-3"/>
+        <rect x="32" y="99" width="60" height="3" rx="1.5" fill="#00C9A7" opacity="0.2"/>
+        <!-- Typing cursor -->
+        <rect x="27" y="112" width="2" height="12" fill="#00C9A7" class="da-cursor"/>
+        <!-- Counter -->
+        <rect x="68" y="118" width="36" height="16" rx="8" fill="#00C9A7" opacity="0.12"/>
+        <text x="86" y="129" text-anchor="middle" fill="#00C9A7" font-size="9" font-weight="bold" font-family="JetBrains Mono, monospace">+5</text>
       </g>
 
-      <!-- WiFi-off icon -->
-      <g class="da-wifi-off" transform="translate(74, 26)">
-        <path d="M0 4 Q6 0 12 4" stroke="#8B949E" stroke-width="1.5" fill="none" opacity="0.5"/>
-        <line x1="2" y1="0" x2="10" y2="8" stroke="#FF5F57" stroke-width="1.5" opacity="0.7"/>
+      <!-- WiFi off badge -->
+      <g transform="translate(90, 25)">
+        <circle r="7" fill="#1C2128" stroke="#30363D" stroke-width="1"/>
+        <path d="M-3 1 Q0 -2 3 1" stroke="#8B949E" stroke-width="1.2" fill="none" opacity="0.5"/>
+        <line x1="-2" y1="-3" x2="2" y2="3" stroke="#FF5F57" stroke-width="1.2" opacity="0.7"/>
       </g>
 
-      <!-- Label -->
-      <text x="60" y="162" text-anchor="middle" fill="#8B949E" font-size="12" font-family="Inter, system-ui, sans-serif" font-weight="600">Phone</text>
-      <text x="60" y="176" text-anchor="middle" fill="#00C9A7" font-size="9" font-family="JetBrains Mono, monospace" class="da-status da-status-a">editing...</text>
+      <!-- Labels -->
+      <text x="65" y="192" text-anchor="middle" fill="#E6EDF3" font-size="14" font-weight="700" font-family="Inter, system-ui, sans-serif">Phone</text>
+      <text x="65" y="208" text-anchor="middle" fill="#00C9A7" font-size="10" font-family="JetBrains Mono, monospace" class="da-status da-status-a">editing offline</text>
     </g>
 
-    <!-- ===== LAPTOP (right) ===== -->
-    <g class="da-dev da-dev-b" transform="translate(540, 60)">
+    <!-- ===== LAPTOP (center) ===== -->
+    <g class="da-dev da-dev-b" transform="translate(340, 70)">
       <!-- Screen frame -->
-      <rect x="0" y="0" width="120" height="85" rx="6" fill="#1C2128" stroke="#F7931A" stroke-width="2" filter="url(#da-filt-orange)"/>
+      <rect x="0" y="0" width="160" height="105" rx="8" fill="#1C2128" stroke="#F7931A" stroke-width="2" filter="url(#da-fo)"/>
       <!-- Screen -->
-      <rect x="8" y="8" width="104" height="64" rx="3" fill="#0D1117"/>
+      <rect x="8" y="8" width="144" height="80" rx="4" fill="#0D1117"/>
       <!-- Base -->
-      <path d="M-8 90 L128 90 L120 100 L0 100 Z" fill="#1C2128" stroke="#F7931A" stroke-width="1.5"/>
+      <path d="M-15 112 L175 112 L160 122 L0 122 Z" fill="#1C2128" stroke="#F7931A" stroke-width="1.5"/>
       <!-- Hinge -->
-      <rect x="40" y="85" width="40" height="5" rx="0" fill="#30363D"/>
+      <rect x="55" y="105" width="50" height="7" rx="0" fill="#30363D"/>
 
-      <!-- Screen content: code editor look -->
-      <g class="da-screen-content-b">
+      <!-- Screen content: code editor -->
+      <g class="da-screen-b">
+        <!-- Tab bar -->
+        <rect x="12" y="12" width="50" height="10" rx="2" fill="#F7931A" opacity="0.1"/>
+        <rect x="15" y="15" width="25" height="4" rx="1.5" fill="#F7931A" opacity="0.5"/>
+        <rect x="66" y="12" width="40" height="10" rx="2" fill="#0D1117" stroke="#30363D" stroke-width="0.5"/>
         <!-- Line numbers -->
-        <text x="14" y="22" fill="#30363D" font-size="6" font-family="JetBrains Mono, monospace">1</text>
-        <text x="14" y="31" fill="#30363D" font-size="6" font-family="JetBrains Mono, monospace">2</text>
-        <text x="14" y="40" fill="#30363D" font-size="6" font-family="JetBrains Mono, monospace">3</text>
-        <text x="14" y="49" fill="#30363D" font-size="6" font-family="JetBrains Mono, monospace">4</text>
-        <text x="14" y="58" fill="#30363D" font-size="6" font-family="JetBrains Mono, monospace">5</text>
+        <text x="18" y="34" fill="#30363D" font-size="7" font-family="JetBrains Mono, monospace">1</text>
+        <text x="18" y="44" fill="#30363D" font-size="7" font-family="JetBrains Mono, monospace">2</text>
+        <text x="18" y="54" fill="#30363D" font-size="7" font-family="JetBrains Mono, monospace">3</text>
+        <text x="18" y="64" fill="#30363D" font-size="7" font-family="JetBrains Mono, monospace">4</text>
+        <text x="18" y="74" fill="#30363D" font-size="7" font-family="JetBrains Mono, monospace">5</text>
         <!-- Code lines -->
-        <rect x="22" y="17" width="24" height="4" rx="1.5" fill="#A259FF" opacity="0.6" class="da-data da-data-6"/>
-        <rect x="50" y="17" width="18" height="4" rx="1.5" fill="#F7931A" opacity="0.5"/>
-        <rect x="22" y="26" width="40" height="4" rx="1.5" fill="#F7931A" opacity="0.5" class="da-data da-data-7"/>
-        <rect x="22" y="35" width="30" height="4" rx="1.5" fill="#00C9A7" opacity="0.4"/>
-        <rect x="56" y="35" width="15" height="4" rx="1.5" fill="#F7931A" opacity="0.6" class="da-data da-data-8"/>
-        <rect x="22" y="44" width="50" height="4" rx="1.5" fill="#F7931A" opacity="0.3" class="da-data da-data-9"/>
-        <rect x="22" y="53" width="20" height="4" rx="1.5" fill="#A259FF" opacity="0.4"/>
+        <rect x="28" y="29" width="30" height="4" rx="1.5" fill="#A259FF" opacity="0.5"/>
+        <rect x="62" y="29" width="22" height="4" rx="1.5" fill="#F7931A" opacity="0.5" class="da-data da-data-4"/>
+        <rect x="28" y="39" width="55" height="4" rx="1.5" fill="#F7931A" opacity="0.4" class="da-data da-data-5"/>
+        <rect x="28" y="49" width="35" height="4" rx="1.5" fill="#00C9A7" opacity="0.4"/>
+        <rect x="67" y="49" width="20" height="4" rx="1.5" fill="#F7931A" opacity="0.5" class="da-data da-data-6"/>
+        <rect x="28" y="59" width="65" height="4" rx="1.5" fill="#F7931A" opacity="0.3" class="da-data da-data-7"/>
+        <rect x="28" y="69" width="25" height="4" rx="1.5" fill="#A259FF" opacity="0.4"/>
         <!-- Cursor -->
-        <rect x="22" y="60" width="2" height="8" fill="#F7931A" class="da-cursor da-cursor-b"/>
-        <!-- Counter badge -->
-        <g class="da-badge-b">
-          <rect x="74" y="54" width="30" height="14" rx="7" fill="#F7931A" opacity="0.15"/>
-          <text x="89" y="64" text-anchor="middle" fill="#F7931A" font-size="7" font-weight="bold" font-family="JetBrains Mono, monospace">+3</text>
-        </g>
+        <rect x="28" y="77" width="2" height="8" fill="#F7931A" class="da-cursor"/>
+        <!-- Badge -->
+        <rect x="106" y="70" width="36" height="14" rx="7" fill="#F7931A" opacity="0.12"/>
+        <text x="124" y="80" text-anchor="middle" fill="#F7931A" font-size="8" font-weight="bold" font-family="JetBrains Mono, monospace">+3</text>
       </g>
 
-      <!-- WiFi-off icon -->
-      <g class="da-wifi-off" transform="translate(94, 14)">
-        <path d="M0 4 Q6 0 12 4" stroke="#8B949E" stroke-width="1.5" fill="none" opacity="0.5"/>
-        <line x1="2" y1="0" x2="10" y2="8" stroke="#FF5F57" stroke-width="1.5" opacity="0.7"/>
+      <!-- WiFi off -->
+      <g transform="translate(136, 15)">
+        <circle r="7" fill="#1C2128" stroke="#30363D" stroke-width="1"/>
+        <path d="M-3 1 Q0 -2 3 1" stroke="#8B949E" stroke-width="1.2" fill="none" opacity="0.5"/>
+        <line x1="-2" y1="-3" x2="2" y2="3" stroke="#FF5F57" stroke-width="1.2" opacity="0.7"/>
       </g>
 
-      <!-- Label -->
-      <text x="60" y="120" text-anchor="middle" fill="#8B949E" font-size="12" font-family="Inter, system-ui, sans-serif" font-weight="600">Laptop</text>
-      <text x="60" y="134" text-anchor="middle" fill="#F7931A" font-size="9" font-family="JetBrains Mono, monospace" class="da-status da-status-b">editing...</text>
+      <text x="80" y="145" text-anchor="middle" fill="#E6EDF3" font-size="14" font-weight="700" font-family="Inter, system-ui, sans-serif">Laptop</text>
+      <text x="80" y="161" text-anchor="middle" fill="#F7931A" font-size="10" font-family="JetBrains Mono, monospace" class="da-status da-status-b">editing offline</text>
     </g>
 
-    <!-- ===== IoT SENSOR (bottom center) ===== -->
-    <g class="da-dev da-dev-c" transform="translate(340, 290)">
-      <!-- Board body -->
-      <rect x="0" y="0" width="120" height="65" rx="8" fill="#1C2128" stroke="#A259FF" stroke-width="2" filter="url(#da-filt-purple)"/>
+    <!-- ===== IoT SENSOR (right) ===== -->
+    <g class="da-dev da-dev-c" transform="translate(645, 75)">
+      <!-- Board -->
+      <rect x="0" y="0" width="160" height="90" rx="10" fill="#1C2128" stroke="#A259FF" stroke-width="2" filter="url(#da-fp)"/>
       <!-- Chip -->
-      <rect x="14" y="12" width="28" height="22" rx="3" fill="#0D1117" stroke="#30363D" stroke-width="1"/>
-      <!-- Chip pins -->
-      <line x1="18" y1="10" x2="18" y2="12" stroke="#30363D" stroke-width="1.5"/>
-      <line x1="24" y1="10" x2="24" y2="12" stroke="#30363D" stroke-width="1.5"/>
-      <line x1="30" y1="10" x2="30" y2="12" stroke="#30363D" stroke-width="1.5"/>
-      <line x1="36" y1="10" x2="36" y2="12" stroke="#30363D" stroke-width="1.5"/>
-      <line x1="18" y1="34" x2="18" y2="36" stroke="#30363D" stroke-width="1.5"/>
-      <line x1="24" y1="34" x2="24" y2="36" stroke="#30363D" stroke-width="1.5"/>
-      <line x1="30" y1="34" x2="30" y2="36" stroke="#30363D" stroke-width="1.5"/>
-      <line x1="36" y1="34" x2="36" y2="36" stroke="#30363D" stroke-width="1.5"/>
-      <!-- CPU label -->
-      <text x="28" y="26" text-anchor="middle" fill="#A259FF" font-size="5" font-family="JetBrains Mono, monospace" opacity="0.8">ESP32</text>
+      <rect x="16" y="14" width="42" height="32" rx="4" fill="#0D1117" stroke="#30363D" stroke-width="1"/>
+      <!-- Chip pins top -->
+      <line x1="22" y1="12" x2="22" y2="14" stroke="#30363D" stroke-width="2"/>
+      <line x1="30" y1="12" x2="30" y2="14" stroke="#30363D" stroke-width="2"/>
+      <line x1="38" y1="12" x2="38" y2="14" stroke="#30363D" stroke-width="2"/>
+      <line x1="46" y1="12" x2="46" y2="14" stroke="#30363D" stroke-width="2"/>
+      <!-- Chip pins bottom -->
+      <line x1="22" y1="46" x2="22" y2="48" stroke="#30363D" stroke-width="2"/>
+      <line x1="30" y1="46" x2="30" y2="48" stroke="#30363D" stroke-width="2"/>
+      <line x1="38" y1="46" x2="38" y2="48" stroke="#30363D" stroke-width="2"/>
+      <line x1="46" y1="46" x2="46" y2="48" stroke="#30363D" stroke-width="2"/>
+      <!-- CPU text -->
+      <text x="37" y="34" text-anchor="middle" fill="#A259FF" font-size="7" font-weight="600" font-family="JetBrains Mono, monospace" opacity="0.7">ESP32</text>
 
-      <!-- LED indicators -->
-      <circle cx="54" cy="16" r="3" fill="#A259FF" class="da-led da-led-1"/>
-      <circle cx="64" cy="16" r="3" fill="#7EE787" class="da-led da-led-2"/>
-      <circle cx="74" cy="16" r="3" fill="#F7931A" class="da-led da-led-3"/>
+      <!-- LEDs -->
+      <circle cx="76" cy="20" r="4" fill="#A259FF" class="da-led da-led-1"/>
+      <circle cx="90" cy="20" r="4" fill="#7EE787" class="da-led da-led-2"/>
+      <circle cx="104" cy="20" r="4" fill="#F7931A" class="da-led da-led-3"/>
 
-      <!-- Data readouts -->
-      <g class="da-sensor-data">
-        <text x="54" y="32" fill="#A259FF" font-size="7" font-family="JetBrains Mono, monospace" opacity="0.8" class="da-reading-1">23.4°C</text>
-        <text x="54" y="42" fill="#A259FF" font-size="7" font-family="JetBrains Mono, monospace" opacity="0.6" class="da-reading-2">68% RH</text>
-        <rect x="54" y="48" width="52" height="5" rx="2.5" fill="#0D1117" stroke="#30363D" stroke-width="0.5"/>
-        <rect x="55" y="49" width="35" height="3" rx="1.5" fill="#A259FF" opacity="0.5" class="da-progress"/>
-      </g>
+      <!-- Sensor readouts -->
+      <text x="72" y="42" fill="#A259FF" font-size="10" font-weight="600" font-family="JetBrains Mono, monospace" opacity="0.8" class="da-reading-1">23.4°C</text>
+      <text x="72" y="56" fill="#A259FF" font-size="10" font-family="JetBrains Mono, monospace" opacity="0.5" class="da-reading-2">68% RH</text>
+      <!-- Progress bar -->
+      <rect x="72" y="64" width="72" height="6" rx="3" fill="#0D1117" stroke="#30363D" stroke-width="0.5"/>
+      <rect x="73" y="65" width="48" height="4" rx="2" fill="#A259FF" opacity="0.4" class="da-progress"/>
 
       <!-- Antenna -->
-      <g transform="translate(100, -5)">
-        <line x1="8" y1="5" x2="8" y2="-10" stroke="#A259FF" stroke-width="2"/>
-        <circle cx="8" cy="-14" r="4" fill="none" stroke="#A259FF" stroke-width="1.5" opacity="0.8"/>
-        <circle cx="8" cy="-14" r="8" fill="none" stroke="#A259FF" stroke-width="1" opacity="0.3" class="da-wave da-wave-1"/>
-        <circle cx="8" cy="-14" r="13" fill="none" stroke="#A259FF" stroke-width="0.5" opacity="0.15" class="da-wave da-wave-2"/>
+      <g transform="translate(135, -8)">
+        <line x1="10" y1="8" x2="10" y2="-8" stroke="#A259FF" stroke-width="2.5"/>
+        <circle cx="10" cy="-12" r="5" fill="none" stroke="#A259FF" stroke-width="2" opacity="0.7"/>
+        <circle cx="10" cy="-12" r="11" fill="none" stroke="#A259FF" stroke-width="1" opacity="0.25" class="da-wave da-wave-1"/>
+        <circle cx="10" cy="-12" r="18" fill="none" stroke="#A259FF" stroke-width="0.5" opacity="0.1" class="da-wave da-wave-2"/>
       </g>
 
-      <!-- Label -->
-      <text x="60" y="82" text-anchor="middle" fill="#8B949E" font-size="12" font-family="Inter, system-ui, sans-serif" font-weight="600">IoT Sensor</text>
-      <text x="60" y="96" text-anchor="middle" fill="#A259FF" font-size="9" font-family="JetBrains Mono, monospace" class="da-status da-status-c">collecting...</text>
+      <!-- Badge -->
+      <rect x="16" y="66" width="36" height="14" rx="7" fill="#A259FF" opacity="0.12"/>
+      <text x="34" y="76" text-anchor="middle" fill="#A259FF" font-size="8" font-weight="bold" font-family="JetBrains Mono, monospace">+2</text>
+
+      <text x="80" y="112" text-anchor="middle" fill="#E6EDF3" font-size="14" font-weight="700" font-family="Inter, system-ui, sans-serif">IoT Sensor</text>
+      <text x="80" y="128" text-anchor="middle" fill="#A259FF" font-size="10" font-family="JetBrains Mono, monospace" class="da-status da-status-c">collecting data</text>
     </g>
 
-    <!-- ===== MERGE HUB (center) ===== -->
-    <g class="da-merge" transform="translate(400, 265)">
-      <!-- Outer ring -->
-      <circle cx="0" cy="0" r="28" fill="none" stroke="#00C9A7" stroke-width="1" opacity="0.2" class="da-merge-outer"/>
-      <!-- Inner circle -->
-      <circle cx="0" cy="0" r="20" fill="#1C2128" stroke="#00C9A7" stroke-width="2.5" class="da-merge-circle"/>
-      <!-- Merge icon (two arrows converging) -->
-      <path d="M-7 -5 L0 2 L7 -5" stroke="#00C9A7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-      <path d="M-7 1 L0 8 L7 1" stroke="#00C9A7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.5"/>
-      <!-- Label -->
-      <text x="0" y="42" text-anchor="middle" fill="#00C9A7" font-size="8" font-weight="bold" font-family="JetBrains Mono, monospace" class="da-merge-label">merge()</text>
+    <!-- ===== MERGE HUB (bottom center) ===== -->
+    <g class="da-merge" transform="translate(450, 300)">
+      <circle cx="0" cy="0" r="34" fill="none" stroke="#00C9A7" stroke-width="1" opacity="0.15" class="da-merge-outer"/>
+      <circle cx="0" cy="0" r="25" fill="#1C2128" stroke="#00C9A7" stroke-width="2.5" class="da-merge-circle"/>
+      <path d="M-8 -5 L0 3 L8 -5" stroke="#00C9A7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <path d="M-8 2 L0 10 L8 2" stroke="#00C9A7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.4"/>
+      <text x="0" y="48" text-anchor="middle" fill="#00C9A7" font-size="11" font-weight="bold" font-family="JetBrains Mono, monospace" class="da-merge-label">merge()</text>
     </g>
 
-    <!-- ===== DATA PACKETS (flying dots) ===== -->
+    <!-- ===== DATA PACKETS ===== -->
     <g class="da-packets">
-      <!-- Phone → Hub -->
-      <circle r="5" fill="#00C9A7" opacity="0" class="da-pkt da-pkt-1" filter="url(#da-filt-teal)"/>
-      <circle r="3" fill="#00C9A7" opacity="0" class="da-pkt da-pkt-1b"/>
-      <!-- Laptop → Hub -->
-      <circle r="5" fill="#F7931A" opacity="0" class="da-pkt da-pkt-2" filter="url(#da-filt-orange)"/>
-      <circle r="3" fill="#F7931A" opacity="0" class="da-pkt da-pkt-2b"/>
-      <!-- IoT → Hub -->
-      <circle r="4" fill="#A259FF" opacity="0" class="da-pkt da-pkt-3" filter="url(#da-filt-purple)"/>
-      <circle r="2.5" fill="#A259FF" opacity="0" class="da-pkt da-pkt-3b"/>
+      <circle r="6" fill="#00C9A7" opacity="0" class="da-pkt da-pkt-1" filter="url(#da-ft)"/>
+      <circle r="4" fill="#00C9A7" opacity="0" class="da-pkt da-pkt-1b"/>
+      <circle r="6" fill="#F7931A" opacity="0" class="da-pkt da-pkt-2" filter="url(#da-fo)"/>
+      <circle r="4" fill="#F7931A" opacity="0" class="da-pkt da-pkt-2b"/>
+      <circle r="5" fill="#A259FF" opacity="0" class="da-pkt da-pkt-3" filter="url(#da-fp)"/>
+      <circle r="3.5" fill="#A259FF" opacity="0" class="da-pkt da-pkt-3b"/>
     </g>
 
-    <!-- ===== CONVERGENCE CHECKMARKS (appear after sync) ===== -->
+    <!-- ===== CONVERGENCE CHECKS ===== -->
     <g class="da-checks">
-      <g class="da-check da-check-a" transform="translate(180, 190)">
-        <circle r="10" fill="#00C9A7" opacity="0" class="da-check-bg"/>
-        <path d="M-4 0 L-1 3 L5 -3" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0" class="da-check-mark"/>
+      <g class="da-check" transform="translate(215, 230)">
+        <circle r="12" fill="#7EE787" opacity="0" class="da-check-bg da-chk-1"/>
+        <path d="M-5 0 L-2 3 L6 -4" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0" class="da-check-mark da-chkm-1"/>
       </g>
-      <g class="da-check da-check-b" transform="translate(620, 190)">
-        <circle r="10" fill="#F7931A" opacity="0" class="da-check-bg"/>
-        <path d="M-4 0 L-1 3 L5 -3" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0" class="da-check-mark"/>
+      <g class="da-check" transform="translate(480, 230)">
+        <circle r="12" fill="#7EE787" opacity="0" class="da-check-bg da-chk-2"/>
+        <path d="M-5 0 L-2 3 L6 -4" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0" class="da-check-mark da-chkm-2"/>
       </g>
-      <g class="da-check da-check-c" transform="translate(400, 395)">
-        <circle r="10" fill="#A259FF" opacity="0" class="da-check-bg"/>
-        <path d="M-4 0 L-1 3 L5 -3" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0" class="da-check-mark"/>
+      <g class="da-check" transform="translate(770, 215)">
+        <circle r="12" fill="#7EE787" opacity="0" class="da-check-bg da-chk-3"/>
+        <path d="M-5 0 L-2 3 L6 -4" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0" class="da-check-mark da-chkm-3"/>
       </g>
     </g>
   </svg>
 </div>
 
 <style>
-  /* ===== Device floating ===== */
-  .da-dev-a { animation: da-float-a 6s ease-in-out infinite; }
-  .da-dev-b { animation: da-float-b 6s ease-in-out infinite 0.8s; }
-  .da-dev-c { animation: da-float-c 6s ease-in-out infinite 1.6s; }
+  /* Device floating */
+  .da-dev-a { animation: da-f-a 6s ease-in-out infinite; }
+  .da-dev-b { animation: da-f-b 6s ease-in-out infinite 0.7s; }
+  .da-dev-c { animation: da-f-c 6s ease-in-out infinite 1.4s; }
+  @keyframes da-f-a { 0%,100% { transform: translate(85px,55px); } 50% { transform: translate(85px,47px); } }
+  @keyframes da-f-b { 0%,100% { transform: translate(340px,70px); } 50% { transform: translate(340px,62px); } }
+  @keyframes da-f-c { 0%,100% { transform: translate(645px,75px); } 50% { transform: translate(645px,67px); } }
 
-  @keyframes da-float-a {
-    0%, 100% { transform: translate(100px, 60px); }
-    50% { transform: translate(100px, 52px); }
-  }
-  @keyframes da-float-b {
-    0%, 100% { transform: translate(540px, 60px); }
-    50% { transform: translate(540px, 52px); }
-  }
-  @keyframes da-float-c {
-    0%, 100% { transform: translate(340px, 290px); }
-    50% { transform: translate(340px, 282px); }
-  }
+  /* Cursor blink */
+  .da-cursor { animation: da-cblink 1s step-end infinite; }
+  @keyframes da-cblink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
 
-  /* ===== Cursors blink ===== */
-  .da-cursor { animation: da-cursor-blink 1s step-end infinite; }
-  @keyframes da-cursor-blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0; }
-  }
-
-  /* ===== Data lines shimmer ===== */
-  .da-data { animation: da-shimmer 3s ease-in-out infinite; }
+  /* Data shimmer */
+  .da-data { animation: da-shim 3s ease-in-out infinite; }
   .da-data-1 { animation-delay: 0s; }
-  .da-data-2 { animation-delay: 0.2s; }
-  .da-data-3 { animation-delay: 0.4s; }
-  .da-data-4 { animation-delay: 0.6s; }
-  .da-data-5 { animation-delay: 0.8s; }
-  .da-data-6 { animation-delay: 0.1s; }
-  .da-data-7 { animation-delay: 0.3s; }
-  .da-data-8 { animation-delay: 0.5s; }
-  .da-data-9 { animation-delay: 0.7s; }
+  .da-data-2 { animation-delay: 0.3s; }
+  .da-data-3 { animation-delay: 0.6s; }
+  .da-data-4 { animation-delay: 0.1s; }
+  .da-data-5 { animation-delay: 0.4s; }
+  .da-data-6 { animation-delay: 0.7s; }
+  .da-data-7 { animation-delay: 0.2s; }
+  @keyframes da-shim { 0%,100% { opacity: 0.25; } 50% { opacity: 0.85; } }
 
-  @keyframes da-shimmer {
-    0%, 100% { opacity: 0.3; }
-    50% { opacity: 0.9; }
-  }
-
-  /* ===== LED blink ===== */
-  .da-led { animation: da-led-blink 2s ease-in-out infinite; }
+  /* LEDs */
+  .da-led { animation: da-led 2s ease-in-out infinite; }
   .da-led-2 { animation-delay: 0.6s; }
   .da-led-3 { animation-delay: 1.2s; }
-  @keyframes da-led-blink {
-    0%, 100% { opacity: 0.3; r: 3; }
-    50% { opacity: 1; r: 3.5; }
-  }
+  @keyframes da-led { 0%,100% { opacity: 0.25; } 50% { opacity: 1; } }
 
-  /* ===== Radio waves ===== */
+  /* Radio waves */
   .da-wave { animation: da-radio 2.5s ease-out infinite; }
   .da-wave-2 { animation-delay: 1.2s; }
-  @keyframes da-radio {
-    0% { r: 8; opacity: 0.3; }
-    100% { r: 20; opacity: 0; }
-  }
+  @keyframes da-radio { 0% { r: 11; opacity: 0.25; } 100% { r: 25; opacity: 0; } }
 
-  /* ===== Progress bar ===== */
+  /* Progress bar */
   .da-progress { animation: da-prog 4s ease-in-out infinite; }
-  @keyframes da-prog {
-    0% { width: 10px; }
-    50% { width: 45px; }
-    100% { width: 10px; }
-  }
+  @keyframes da-prog { 0% { width: 12px; } 50% { width: 60px; } 100% { width: 12px; } }
 
-  /* ===== Sensor readings cycle ===== */
-  .da-reading-1 { animation: da-reading 5s step-end infinite; }
-  .da-reading-2 { animation: da-reading 5s step-end infinite 1s; }
-  @keyframes da-reading {
-    0% { opacity: 0.8; }
-    50% { opacity: 0.4; }
-    100% { opacity: 0.8; }
-  }
+  /* Sensor readings */
+  .da-reading-1 { animation: da-read 5s step-end infinite; }
+  .da-reading-2 { animation: da-read 5s step-end infinite 1s; }
+  @keyframes da-read { 0% { opacity: 0.8; } 50% { opacity: 0.35; } 100% { opacity: 0.8; } }
 
-  /* ===== Connection lines dash flow ===== */
+  /* Connection dash flow */
   .da-conn { animation: da-dash 2s linear infinite; }
   .da-conn-2 { animation-delay: 0.5s; }
   .da-conn-3 { animation-delay: 1s; }
   .da-conn-4 { animation-delay: 1.5s; }
-  @keyframes da-dash {
-    to { stroke-dashoffset: -24; }
-  }
+  @keyframes da-dash { to { stroke-dashoffset: -22; } }
 
-  /* ===== Merge hub pulse ===== */
-  .da-merge-circle {
-    animation: da-merge-pulse 4s ease-in-out infinite;
-  }
-  @keyframes da-merge-pulse {
-    0%, 100% { stroke: #00C9A7; }
-    33% { stroke: #F7931A; }
-    66% { stroke: #A259FF; }
-  }
+  /* Merge hub pulse */
+  .da-merge-circle { animation: da-mpulse 4s ease-in-out infinite; }
+  @keyframes da-mpulse { 0%,100% { stroke: #00C9A7; } 33% { stroke: #F7931A; } 66% { stroke: #A259FF; } }
+  .da-merge-outer { animation: da-ring 4s ease-in-out infinite; }
+  @keyframes da-ring { 0%,100% { r: 34; opacity: 0.12; } 50% { r: 40; opacity: 0.04; } }
+  .da-merge-label { animation: da-mlabel 4s ease-in-out infinite; }
+  @keyframes da-mlabel { 0%,100% { opacity: 0.5; } 50% { opacity: 1; } }
 
-  .da-merge-outer {
-    animation: da-ring-pulse 4s ease-in-out infinite;
-  }
-  @keyframes da-ring-pulse {
-    0%, 100% { r: 28; opacity: 0.15; }
-    50% { r: 34; opacity: 0.05; }
-  }
-
-  .da-merge-label {
-    animation: da-label-pulse 4s ease-in-out infinite;
-  }
-  @keyframes da-label-pulse {
-    0%, 100% { opacity: 0.6; }
-    50% { opacity: 1; }
-  }
-
-  /* ===== Data packets flying ===== */
-  .da-pkt-1, .da-pkt-1b {
-    animation: da-fly-1 4s ease-in-out infinite;
-  }
+  /* Data packets */
+  .da-pkt-1,.da-pkt-1b { animation: da-fly1 4s ease-in-out infinite; }
   .da-pkt-1b { animation-delay: 2s; }
-  @keyframes da-fly-1 {
-    0% { cx: 210; cy: 165; opacity: 0; }
-    10% { opacity: 0.9; }
-    50% { cx: 370; cy: 265; opacity: 0.9; }
-    60% { opacity: 0; }
-    100% { cx: 370; cy: 265; opacity: 0; }
-  }
-
-  .da-pkt-2, .da-pkt-2b {
-    animation: da-fly-2 4s ease-in-out infinite 1s;
-  }
+  @keyframes da-fly1 { 0% { cx:240;cy:190;opacity:0; } 10%{opacity:0.9;} 50%{cx:410;cy:280;opacity:0.9;} 60%{opacity:0;} 100%{cx:410;cy:280;opacity:0;} }
+  .da-pkt-2,.da-pkt-2b { animation: da-fly2 4s ease-in-out infinite 1s; }
   .da-pkt-2b { animation-delay: 3s; }
-  @keyframes da-fly-2 {
-    0% { cx: 590; cy: 165; opacity: 0; }
-    10% { opacity: 0.9; }
-    50% { cx: 430; cy: 265; opacity: 0.9; }
-    60% { opacity: 0; }
-    100% { cx: 430; cy: 265; opacity: 0; }
-  }
-
-  .da-pkt-3, .da-pkt-3b {
-    animation: da-fly-3 4s ease-in-out infinite 2s;
-  }
+  @keyframes da-fly2 { 0% { cx:450;cy:220;opacity:0; } 10%{opacity:0.9;} 50%{cx:450;cy:270;opacity:0.9;} 60%{opacity:0;} 100%{cx:450;cy:270;opacity:0;} }
+  .da-pkt-3,.da-pkt-3b { animation: da-fly3 4s ease-in-out infinite 2s; }
   .da-pkt-3b { animation-delay: 4s; }
-  @keyframes da-fly-3 {
-    0% { cx: 400; cy: 340; opacity: 0; }
-    10% { opacity: 0.8; }
-    50% { cx: 400; cy: 290; opacity: 0.8; }
-    60% { opacity: 0; }
-    100% { cx: 400; cy: 290; opacity: 0; }
-  }
+  @keyframes da-fly3 { 0% { cx:660;cy:190;opacity:0; } 10%{opacity:0.8;} 50%{cx:490;cy:280;opacity:0.8;} 60%{opacity:0;} 100%{cx:490;cy:280;opacity:0;} }
 
-  /* ===== Status labels ===== */
-  .da-status { animation: da-status-pulse 4s ease-in-out infinite; }
+  /* Status labels */
+  .da-status { animation: da-spulse 4s ease-in-out infinite; }
   .da-status-b { animation-delay: 1.3s; }
   .da-status-c { animation-delay: 2.6s; }
-  @keyframes da-status-pulse {
-    0%, 100% { opacity: 0.4; }
-    50% { opacity: 1; }
-  }
+  @keyframes da-spulse { 0%,100% { opacity: 0.4; } 50% { opacity: 1; } }
 
-  /* ===== Ambient glow breathe ===== */
-  .da-ambient-a { animation: da-breathe 5s ease-in-out infinite; }
-  .da-ambient-b { animation: da-breathe 5s ease-in-out infinite 1.5s; }
-  .da-ambient-c { animation: da-breathe 5s ease-in-out infinite 3s; }
-  @keyframes da-breathe {
-    0%, 100% { opacity: 0.6; }
-    50% { opacity: 1; }
-  }
+  /* Ambient glow breathe */
+  .da-ambient { animation: da-breathe 5s ease-in-out infinite; }
+  .da-ambient-2 { animation-delay: 1.5s; }
+  .da-ambient-3 { animation-delay: 3s; }
+  @keyframes da-breathe { 0%,100% { opacity: 0.5; } 50% { opacity: 1; } }
 
-  /* ===== Badges pulse ===== */
-  .da-badge-a, .da-badge-b {
-    animation: da-badge-pop 3s ease-in-out infinite;
+  /* Checkmarks pulse */
+  .da-chk-1 { animation: da-chkpop 7s ease-in-out infinite; }
+  .da-chk-2 { animation: da-chkpop 7s ease-in-out infinite 0.4s; }
+  .da-chk-3 { animation: da-chkpop 7s ease-in-out infinite 0.8s; }
+  .da-chkm-1 { animation: da-chkmrk 7s ease-in-out infinite; }
+  .da-chkm-2 { animation: da-chkmrk 7s ease-in-out infinite 0.4s; }
+  .da-chkm-3 { animation: da-chkmrk 7s ease-in-out infinite 0.8s; }
+  @keyframes da-chkpop {
+    0%,55% { opacity: 0; r: 8; }
+    65% { opacity: 0.3; r: 14; }
+    80% { opacity: 0.25; r: 12; }
+    100% { opacity: 0; r: 8; }
   }
-  .da-badge-b { animation-delay: 1.5s; }
-  @keyframes da-badge-pop {
-    0%, 70%, 100% { opacity: 0.7; }
-    35% { opacity: 1; }
-  }
-
-  /* ===== Checkmarks (pulsing in and out) ===== */
-  .da-check-a .da-check-bg { animation: da-check-pop 6s ease-in-out infinite; }
-  .da-check-b .da-check-bg { animation: da-check-pop 6s ease-in-out infinite 0.3s; }
-  .da-check-c .da-check-bg { animation: da-check-pop 6s ease-in-out infinite 0.6s; }
-  .da-check-a .da-check-mark { animation: da-check-mark 6s ease-in-out infinite; }
-  .da-check-b .da-check-mark { animation: da-check-mark 6s ease-in-out infinite 0.3s; }
-  .da-check-c .da-check-mark { animation: da-check-mark 6s ease-in-out infinite 0.6s; }
-  @keyframes da-check-pop {
-    0%, 60% { opacity: 0; r: 6; }
-    70% { opacity: 0.25; r: 12; }
-    85% { opacity: 0.2; r: 10; }
-    100% { opacity: 0; r: 6; }
-  }
-  @keyframes da-check-mark {
-    0%, 60% { opacity: 0; }
-    70% { opacity: 1; }
-    85% { opacity: 0.9; }
+  @keyframes da-chkmrk {
+    0%,55% { opacity: 0; }
+    65% { opacity: 1; }
+    80% { opacity: 0.9; }
     100% { opacity: 0; }
   }
 </style>
