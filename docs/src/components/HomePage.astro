@@ -313,21 +313,67 @@ const codeMigration = [
     <p class="text-text-dim text-center max-w-xl mx-auto mb-12">{t(lang, 'eco.sub')}</p>
     <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {[
-        ['crdt-kit', '9 CRDTs + HLC + traits', 'std \u00b7 serde \u00b7 wasm'],
-        ['crdt-store', 'SQLite, redb, memory + CrdtDb', 'sqlite \u00b7 redb'],
-        ['crdt-migrate', 'Version envelopes + migration engine', 'macros'],
-        ['crdt-codegen', 'TOML schema \u2192 persistence layer', '\u2014'],
-        ['crdt-cli', 'generate, dev-ui, inspect, compact, export', '\u2014'],
-        ['crdt-dev-ui', 'Embedded dark-themed web inspector', '\u2014'],
-      ].map(([name, desc, flags]) => (
+        ['crdt-kit',
+          lang === 'es' ? 'Librería principal' : 'Core library',
+          lang === 'es'
+            ? '9 CRDTs listos para usar: GCounter, PNCounter, LWWRegister, MVRegister, GSet, TwoPSet, ORSet, RGA y TextCrdt. Incluye Hybrid Logical Clock (HLC) y traits para crear tus propios CRDTs.'
+            : '9 ready-to-use CRDTs: GCounter, PNCounter, LWWRegister, MVRegister, GSet, TwoPSet, ORSet, RGA, and TextCrdt. Includes Hybrid Logical Clock (HLC) and traits to build your own CRDTs.',
+          'no_std \u00b7 serde \u00b7 wasm', 'teal',
+          'M20 2H8a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V8z'],
+        ['crdt-store',
+          lang === 'es' ? 'Capa de persistencia' : 'Persistence layer',
+          lang === 'es'
+            ? 'Guarda y carga CRDTs en SQLite, redb (embedded) o memoria. CrdtDb unifica el acceso: save(), load(), merge(), list_keys(). Namespaces para separar entidades.'
+            : 'Save and load CRDTs to SQLite, redb (embedded), or memory. CrdtDb unifies access: save(), load(), merge(), list_keys(). Namespaces to separate entities.',
+          'sqlite \u00b7 redb', 'orange',
+          'M12 2C6.48 2 2 4.69 2 5s4.48 3 10 3 10-2.69 10-3-4.48-3-10-3'],
+        ['crdt-migrate',
+          lang === 'es' ? 'Migraciones automáticas' : 'Automatic migrations',
+          lang === 'es'
+            ? 'Evoluciona tus structs sin perder datos. Define versiones con #[crdt_schema] y funciones #[migration]. Los registros se migran automáticamente al cargar.'
+            : 'Evolve your structs without losing data. Define versions with #[crdt_schema] and #[migration] functions. Records auto-migrate on load.',
+          'macros', 'teal',
+          'M4 22h14a2 2 0 002-2V7.5L14.5 2H6a2 2 0 00-2 2v4'],
+        ['crdt-codegen',
+          lang === 'es' ? 'Generador de código' : 'Code generator',
+          lang === 'es'
+            ? 'Define entidades en un archivo TOML (schema.toml) y genera automáticamente: structs versionados, migraciones, repositorios y la capa de persistencia completa.'
+            : 'Define entities in a TOML file (schema.toml) and auto-generate: versioned structs, migrations, repositories, and the complete persistence layer.',
+          'CLI', 'purple',
+          'M16 18l6-6-6-6M8 6l-6 6 6 6'],
+        ['crdt-cli',
+          lang === 'es' ? 'Herramienta de línea de comandos' : 'Command-line tool',
+          lang === 'es'
+            ? 'Inspecciona bases de datos, genera código, exporta JSON, compacta event logs y lanza el panel web. Todo desde la terminal con "crdt <comando>".'
+            : 'Inspect databases, generate code, export JSON, compact event logs, and launch the web panel. All from terminal with "crdt <command>".',
+          'binary', 'orange',
+          'M4 17l6-6-6-6M20 17V7M20 17l-6-6M20 17l-6 6'],
+        ['crdt-dev-ui',
+          lang === 'es' ? 'Panel web de inspección' : 'Web inspection panel',
+          lang === 'es'
+            ? 'Panel web embebido en localhost:4242. Navega namespaces, inspecciona entidades, ve event logs y vectores de estado. Dark theme integrado.'
+            : 'Embedded web panel at localhost:4242. Browse namespaces, inspect entities, view event logs and state vectors. Built-in dark theme.',
+          'embedded', 'purple',
+          'M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z'],
+      ].map(([name, role, desc, flags, color, icon]) => (
         <a href={'https://crates.io/crates/' + name} target="_blank"
-          class="block bg-bg-card border border-border rounded-xl p-5 hover:border-teal hover:-translate-y-0.5 transition-all text-text">
-          <div class="flex items-center justify-between mb-2">
-            <h3 class="font-mono font-bold text-sm">{name}</h3>
-            <img src={'https://img.shields.io/crates/v/' + name + '?style=flat-square&color=00C9A7'} alt="" class="h-4" />
+          class="block bg-bg-card border border-border rounded-xl overflow-hidden hover:border-teal hover:-translate-y-0.5 transition-all text-text group">
+          <div class="flex items-center gap-3 px-5 pt-5 pb-3">
+            <div class:list={['w-9 h-9 rounded-lg flex items-center justify-center shrink-0', colorClasses(color as string, 'icon')]}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d={icon as string}/></svg>
+            </div>
+            <div class="min-w-0">
+              <div class="flex items-center gap-2">
+                <h3 class="font-mono font-bold text-sm group-hover:text-teal transition-colors">{name}</h3>
+                <img src={'https://img.shields.io/crates/v/' + name + '?style=flat-square&color=00C9A7'} alt="" class="h-4" />
+              </div>
+              <p class:list={['text-[11px] font-semibold', color === 'teal' ? 'text-teal' : color === 'orange' ? 'text-orange' : 'text-purple']}>{role}</p>
+            </div>
           </div>
-          <p class="text-text-dim text-xs leading-relaxed mb-2">{desc}</p>
-          <span class="text-text-dim text-[10px] italic">{flags}</span>
+          <p class="text-text-dim text-xs leading-relaxed px-5 pb-3">{desc}</p>
+          <div class="px-5 pb-4">
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-bg border border-border text-text-dim">{flags}</span>
+          </div>
         </a>
       ))}
     </div>
