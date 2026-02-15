@@ -69,15 +69,55 @@ const codeMigration = [
 ---
 
 <!-- ===== HERO ===== -->
-<section class="relative pt-36 pb-20 text-center overflow-hidden">
-  <div class="absolute inset-0 pointer-events-none" style="background-image: linear-gradient(rgba(48,54,61,0.25) 1px, transparent 1px), linear-gradient(90deg, rgba(48,54,61,0.25) 1px, transparent 1px); background-size: 60px 60px; mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, black 20%, transparent 70%);"></div>
-  <div class="absolute inset-0 pointer-events-none" style="background: radial-gradient(ellipse 600px 400px at 25% 15%, rgba(0,201,167,0.08), transparent 70%), radial-gradient(ellipse 500px 350px at 75% 25%, rgba(162,89,255,0.06), transparent 70%), radial-gradient(ellipse 400px 300px at 50% 85%, rgba(247,147,26,0.04), transparent 70%);"></div>
+<section class="relative pt-32 pb-24 text-center overflow-hidden">
+  <!-- Grid background -->
+  <div class="absolute inset-0 pointer-events-none" style="background-image: linear-gradient(rgba(48,54,61,0.18) 1px, transparent 1px), linear-gradient(90deg, rgba(48,54,61,0.18) 1px, transparent 1px); background-size: 60px 60px; mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, black 20%, transparent 70%);"></div>
+
+  <!-- Animated gradient orbs -->
+  <div class="absolute inset-0 pointer-events-none overflow-hidden">
+    <div class="absolute w-[500px] h-[400px] rounded-full" style="top: -10%; left: 10%; background: radial-gradient(ellipse, rgba(0,201,167,0.12), transparent 70%); animation: hero-orb 8s ease-in-out infinite;"></div>
+    <div class="absolute w-[450px] h-[350px] rounded-full" style="top: -5%; right: 5%; background: radial-gradient(ellipse, rgba(162,89,255,0.09), transparent 70%); animation: hero-orb 10s ease-in-out infinite 2s;"></div>
+    <div class="absolute w-[350px] h-[300px] rounded-full" style="bottom: 5%; left: 40%; background: radial-gradient(ellipse, rgba(247,147,26,0.06), transparent 70%); animation: hero-orb 9s ease-in-out infinite 4s;"></div>
+  </div>
+
+  <!-- Glow ring behind logo -->
+  <div class="absolute left-1/2 -translate-x-1/2 top-24 w-[420px] h-[420px] rounded-full pointer-events-none" style="background: radial-gradient(circle, rgba(0,201,167,0.06) 0%, transparent 60%); animation: hero-glow-ring 4s ease-in-out infinite;"></div>
 
   <div class="relative max-w-4xl mx-auto px-6">
-    <img src="https://raw.githubusercontent.com/crdt-kit/crdt-kit/master/assets/banner.png" alt="crdt-kit" class="mx-auto max-w-md w-full mb-5" />
-    <p class="text-text-dim text-lg mb-2">{t(lang, 'hero.tagline')}</p>
-    <p class="text-text-dim text-sm max-w-xl mx-auto mb-6 leading-relaxed">{t(lang, 'hero.sub')}</p>
+    <!-- Logo with glow -->
+    <div class="relative inline-block mb-6">
+      <div class="absolute inset-0 blur-2xl rounded-full" style="background: rgba(0,201,167,0.08);"></div>
+      <img src="https://raw.githubusercontent.com/crdt-kit/crdt-kit/master/assets/banner.png" alt="crdt-kit" class="relative mx-auto max-w-sm w-full" />
+    </div>
 
+    <!-- Tagline with gradient -->
+    <h1 class="text-xl md:text-2xl font-extrabold tracking-tight mb-3">
+      <span style="background: linear-gradient(135deg, #00C9A7, #A259FF 50%, #F7931A); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">{t(lang, 'hero.tagline')}</span>
+    </h1>
+    <p class="text-text-dim text-sm max-w-lg mx-auto mb-6 leading-relaxed">{t(lang, 'hero.sub')}</p>
+
+    <!-- Feature pills -->
+    <div class="flex justify-center gap-2 flex-wrap mb-7">
+      {[
+        ['no_std', 'teal'],
+        ['~50KB', 'teal'],
+        ['9 CRDTs', 'orange'],
+        ['Delta Sync', 'orange'],
+        ['WASM', 'purple'],
+        [lang === 'es' ? '0 dependencias' : '0 dependencies', 'purple'],
+      ].map(([label, color], i) => (
+        <span
+          class="text-[11px] font-semibold px-3 py-1 rounded-full border"
+          style={`
+            color: ${color === 'teal' ? '#00C9A7' : color === 'orange' ? '#F7931A' : '#A259FF'};
+            background: ${color === 'teal' ? 'rgba(0,201,167,0.08)' : color === 'orange' ? 'rgba(247,147,26,0.08)' : 'rgba(162,89,255,0.08)'};
+            border-color: ${color === 'teal' ? 'rgba(0,201,167,0.2)' : color === 'orange' ? 'rgba(247,147,26,0.2)' : 'rgba(162,89,255,0.2)'};
+            animation: hero-badge-float 3s ease-in-out infinite ${i * 0.3}s;
+          `}>{label}</span>
+      ))}
+    </div>
+
+    <!-- Badges -->
     <div class="flex justify-center gap-2 flex-wrap mb-7">
       <img src="https://img.shields.io/crates/v/crdt-kit.svg?style=flat-square&logo=rust&color=e6522c" alt="crates.io" class="h-5" />
       <img src="https://img.shields.io/crates/d/crdt-kit.svg?style=flat-square&color=e6522c" alt="downloads" class="h-5" />
@@ -85,14 +125,30 @@ const codeMigration = [
       <img src="https://img.shields.io/github/actions/workflow/status/crdt-kit/crdt-kit/ci.yml?branch=master&style=flat-square&logo=github&label=CI" alt="ci" class="h-5" />
     </div>
 
-    <div class="flex justify-center gap-3 flex-wrap mb-7">
-      <a href="#quickstart" class="bg-teal text-bg font-semibold px-5 py-2.5 rounded-lg hover:bg-teal/90 transition-colors text-sm">{t(lang, 'hero.getstarted')}</a>
-      <a href="https://docs.rs/crdt-kit" target="_blank" class="border border-purple/30 bg-purple/10 text-purple font-semibold px-5 py-2.5 rounded-lg hover:border-purple transition-colors text-sm">{t(lang, 'hero.apidocs')}</a>
-      <a href="https://github.com/crdt-kit/crdt-kit" target="_blank" class="border border-border text-text font-semibold px-5 py-2.5 rounded-lg hover:border-text-dim transition-colors text-sm">GitHub</a>
+    <!-- CTA buttons -->
+    <div class="flex justify-center gap-3 flex-wrap mb-8">
+      <a href="#quickstart" class="relative bg-teal text-bg font-semibold px-6 py-2.5 rounded-lg text-sm transition-all hover:brightness-110 hover:shadow-[0_0_20px_rgba(0,201,167,0.25)]">
+        <span class="relative z-10">{t(lang, 'hero.getstarted')}</span>
+      </a>
+      <a href="https://docs.rs/crdt-kit" target="_blank" class="border border-purple/30 bg-purple/10 text-purple font-semibold px-6 py-2.5 rounded-lg text-sm hover:border-purple/60 hover:bg-purple/15 transition-all">{t(lang, 'hero.apidocs')}</a>
+      <a href="https://github.com/crdt-kit/crdt-kit" target="_blank" class="border border-border text-text font-semibold px-6 py-2.5 rounded-lg text-sm hover:border-text-dim hover:bg-bg-card transition-all">GitHub</a>
     </div>
 
-    <div class="inline-flex items-center gap-3 bg-bg-card border border-border rounded-lg px-5 py-2.5">
-      <code class="text-teal text-sm">cargo add crdt-kit</code>
+    <!-- Terminal-style cargo install -->
+    <div class="inline-block">
+      <div class="bg-bg-card border border-border rounded-xl overflow-hidden shadow-lg" style="box-shadow: 0 8px 32px rgba(0,0,0,0.3), 0 0 0 1px rgba(48,54,61,0.5);">
+        <div class="flex items-center gap-1.5 px-4 py-2 border-b border-border">
+          <span class="w-2.5 h-2.5 rounded-full bg-[#FF5F57]"></span>
+          <span class="w-2.5 h-2.5 rounded-full bg-[#FEBC2E]"></span>
+          <span class="w-2.5 h-2.5 rounded-full bg-[#28C840]"></span>
+          <span class="ml-auto text-[10px] font-mono text-text-dim">terminal</span>
+        </div>
+        <div class="px-5 py-3 flex items-center gap-3">
+          <span class="text-teal font-mono text-xs">$</span>
+          <code class="text-teal text-sm font-mono">cargo add crdt-kit --features serde</code>
+          <span class="w-2 h-4 bg-teal/70 ml-1" style="animation: terminal-blink 1s step-end infinite;"></span>
+        </div>
+      </div>
     </div>
   </div>
 </section>
