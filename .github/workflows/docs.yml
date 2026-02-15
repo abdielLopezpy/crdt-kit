@@ -30,11 +30,23 @@ jobs:
         env:
           RUSTDOCFLAGS: "--enable-index-page -Zunstable-options"
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install docs dependencies
+        run: npm ci
+        working-directory: docs
+
+      - name: Build Astro site
+        run: npm run build
+        working-directory: docs
+
       - name: Assemble site
         run: |
           mkdir -p _site
-          # Landing page (docs/ directory)
-          cp -r docs/* _site/
+          # Astro build output
+          cp -r docs/dist/* _site/
           # API documentation under /api/
           cp -r target/doc _site/api
 

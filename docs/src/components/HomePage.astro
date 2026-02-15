@@ -6,13 +6,70 @@ import InteractiveDemo from './InteractiveDemo.tsx';
 
 interface Props { lang: Lang; }
 const { lang } = Astro.props;
+
+function colorClasses(color: string, prefix: string) {
+  if (color === 'teal') return prefix === 'icon' ? 'bg-teal/10 text-teal' : 'bg-teal';
+  if (color === 'orange') return prefix === 'icon' ? 'bg-orange/10 text-orange' : 'bg-orange';
+  return prefix === 'icon' ? 'bg-purple/10 text-purple' : 'bg-purple';
+}
+
+const k = (v: string) => `<span class="syn-k">${v}</span>`;
+const s = (v: string) => `<span class="syn-s">${v}</span>`;
+const n = (v: string) => `<span class="syn-n">${v}</span>`;
+const c = (v: string) => `<span class="syn-c">${v}</span>`;
+const p = (v: string) => `<span class="syn-p">${v}</span>`;
+const ty = (v: string) => `<span class="syn-t">${v}</span>`;
+
+const codeCargoToml = `${k('[dependencies]')}\ncrdt-kit = ${s('"0.3"')}`;
+
+const codeMainRs = [
+  `${k('use')} crdt_kit::prelude::*;`,
+  '',
+  `${c('// Two devices, working offline')}`,
+  `${k('let mut')} phone = GCounter::new(${s('"phone"')});`,
+  'phone.increment();',
+  'phone.increment();',
+  '',
+  `${k('let mut')} laptop = GCounter::new(${s('"laptop"')});`,
+  'laptop.increment();',
+  '',
+  `${c('// Reconnect &mdash; merge. Always converges.')}`,
+  `phone.merge(&amp;laptop);`,
+  `${k('assert_eq!')}(phone.value(), ${n('3')});`,
+].join('\n');
+
+const codeDeltaSync = [
+  `${k('let mut')} sensor = GCounter::new(${s('"sensor-a"')});`,
+  `sensor.increment_by(${n('142')});`,
+  '',
+  `${k('let mut')} gateway = GCounter::new(${s('"gateway"')});`,
+  '',
+  `${c("// Delta: only send what the gateway doesn't have")}`,
+  `${k('let')} delta = sensor.delta(&amp;gateway);`,
+  'gateway.apply_delta(&amp;delta);',
+  `${k('assert_eq!')}(gateway.value(), ${n('142')});`,
+].join('\n');
+
+const codeMigration = [
+  `${k('use')} crdt_migrate::{crdt_schema, migration};`,
+  '',
+  `${p('#[crdt_schema(version = 1, table = "sensors")]')}`,
+  `${k('struct')} SensorV1 { device_id: ${ty('String')}, temperature: ${ty('f32')} }`,
+  '',
+  `${p('#[crdt_schema(version = 2, table = "sensors")]')}`,
+  `${k('struct')} SensorV2 { device_id: ${ty('String')}, temperature: ${ty('f32')}, humidity: Option&lt;${ty('f32')}&gt; }`,
+  '',
+  `${p('#[migration(from = 1, to = 2)]')}`,
+  `${k('fn')} add_humidity(old: SensorV1) -&gt; SensorV2 {`,
+  `  SensorV2 { device_id: old.device_id, temperature: old.temperature, humidity: None }`,
+  '}',
+  `${c('// v1 records auto-migrate to v2 on load')}`,
+].join('\n');
 ---
 
 <!-- ===== HERO ===== -->
 <section class="relative pt-36 pb-20 text-center overflow-hidden">
-  <!-- Grid bg -->
   <div class="absolute inset-0 pointer-events-none" style="background-image: linear-gradient(rgba(48,54,61,0.25) 1px, transparent 1px), linear-gradient(90deg, rgba(48,54,61,0.25) 1px, transparent 1px); background-size: 60px 60px; mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, black 20%, transparent 70%);"></div>
-  <!-- Gradient glows -->
   <div class="absolute inset-0 pointer-events-none" style="background: radial-gradient(ellipse 600px 400px at 25% 15%, rgba(0,201,167,0.08), transparent 70%), radial-gradient(ellipse 500px 350px at 75% 25%, rgba(162,89,255,0.06), transparent 70%), radial-gradient(ellipse 400px 300px at 50% 85%, rgba(247,147,26,0.04), transparent 70%);"></div>
 
   <div class="relative max-w-4xl mx-auto px-6">
@@ -20,7 +77,6 @@ const { lang } = Astro.props;
     <p class="text-text-dim text-lg mb-2">{t(lang, 'hero.tagline')}</p>
     <p class="text-text-dim text-sm max-w-xl mx-auto mb-6 leading-relaxed">{t(lang, 'hero.sub')}</p>
 
-    <!-- Badges -->
     <div class="flex justify-center gap-2 flex-wrap mb-7">
       <img src="https://img.shields.io/crates/v/crdt-kit.svg?style=flat-square&logo=rust&color=e6522c" alt="crates.io" class="h-5" />
       <img src="https://img.shields.io/crates/d/crdt-kit.svg?style=flat-square&color=e6522c" alt="downloads" class="h-5" />
@@ -28,14 +84,12 @@ const { lang } = Astro.props;
       <img src="https://img.shields.io/github/actions/workflow/status/crdt-kit/crdt-kit/ci.yml?branch=master&style=flat-square&logo=github&label=CI" alt="ci" class="h-5" />
     </div>
 
-    <!-- CTAs -->
     <div class="flex justify-center gap-3 flex-wrap mb-7">
       <a href="#quickstart" class="bg-teal text-bg font-semibold px-5 py-2.5 rounded-lg hover:bg-teal/90 transition-colors text-sm">{t(lang, 'hero.getstarted')}</a>
       <a href="https://docs.rs/crdt-kit" target="_blank" class="border border-purple/30 bg-purple/10 text-purple font-semibold px-5 py-2.5 rounded-lg hover:border-purple transition-colors text-sm">{t(lang, 'hero.apidocs')}</a>
       <a href="https://github.com/crdt-kit/crdt-kit" target="_blank" class="border border-border text-text font-semibold px-5 py-2.5 rounded-lg hover:border-text-dim transition-colors text-sm">GitHub</a>
     </div>
 
-    <!-- Install -->
     <div class="inline-flex items-center gap-3 bg-bg-card border border-border rounded-lg px-5 py-2.5">
       <code class="text-teal text-sm">cargo add crdt-kit</code>
     </div>
@@ -106,9 +160,7 @@ const { lang } = Astro.props;
         ['Dev Tools', 'feat.devtools', 'purple', 'M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z'],
       ].map(([title, key, color, d]) => (
         <div class="bg-bg-card border border-border rounded-xl p-5 hover:border-text-dim transition-all hover:-translate-y-0.5">
-          <div class={`w-10 h-10 rounded-lg flex items-center justify-center mb-3 ${
-            color === 'teal' ? 'bg-teal/10 text-teal' : color === 'orange' ? 'bg-orange/10 text-orange' : 'bg-purple/10 text-purple'
-          }`}>
+          <div class:list={['w-10 h-10 rounded-lg flex items-center justify-center mb-3', colorClasses(color as string, 'icon')]}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d={d as string}/></svg>
           </div>
           <h3 class="font-bold text-sm mb-1.5">{title}</h3>
@@ -136,22 +188,22 @@ const { lang } = Astro.props;
         <tbody class="divide-y divide-border">
           {[
             ['Language', 'Rust', 'Rust', 'JS / Rust'],
-            ['Zero deps (core)', '✓', '30+', 'N/A'],
-            ['no_std', '✓', '✗', '✗'],
-            ['WASM', '✓', 'Partial', 'Native'],
+            ['Zero deps (core)', '\u2713', '30+', 'N/A'],
+            ['no_std', '\u2713', '\u2717', '\u2717'],
+            ['WASM', '\u2713', 'Partial', 'Native'],
             ['Storage', 'SQLite, redb, mem', 'Custom', 'N/A'],
             ['Migrations', 'Automatic', 'Manual', 'N/A'],
-            ['Delta sync', '✓', '✓', '✓'],
-            ['Event sourcing', '✓', '✗', '✗'],
-            ['Code generation', '✓', '✗', '✗'],
-            ['CLI', '✓', '✗', '✗'],
+            ['Delta sync', '\u2713', '\u2713', '\u2713'],
+            ['Event sourcing', '\u2713', '\u2717', '\u2717'],
+            ['Code generation', '\u2713', '\u2717', '\u2717'],
+            ['CLI', '\u2713', '\u2717', '\u2717'],
             ['Size', '~50KB', '~500KB+', '~150KB'],
           ].map(([label, ck, am, yjs]) => (
             <tr>
               <td class="py-2.5 px-4 font-medium text-text">{label}</td>
               <td class="py-2.5 px-4 text-teal font-semibold bg-teal/[0.03]">{ck}</td>
-              <td class={`py-2.5 px-4 ${am === '✓' ? 'text-teal' : 'text-text-dim'}`}>{am}</td>
-              <td class={`py-2.5 px-4 ${yjs === '✓' || yjs === 'Native' ? 'text-teal' : 'text-text-dim'}`}>{yjs}</td>
+              <td class:list={['py-2.5 px-4', am === '\u2713' ? 'text-teal' : 'text-text-dim']}>{am}</td>
+              <td class:list={['py-2.5 px-4', (yjs === '\u2713' || yjs === 'Native') ? 'text-teal' : 'text-text-dim']}>{yjs}</td>
             </tr>
           ))}
         </tbody>
@@ -173,29 +225,27 @@ const { lang } = Astro.props;
       ]},
       { cat: lang === 'es' ? 'Registros' : 'Registers', items: [
         { name: 'LWWRegister', badge: 'State', bc: 'dim', desc: lang === 'es' ? 'Last-Writer-Wins. Hybrid Logical Clock.' : 'Last-Writer-Wins. Hybrid Logical Clock.', use: lang === 'es' ? 'Perfiles, config, GPS' : 'Profiles, config, GPS' },
-        { name: 'MVRegister', badge: 'State', bc: 'dim', desc: lang === 'es' ? 'Multi-valor. Preserva escrituras concurrentes.' : 'Multi-value. Preserves concurrent writes.', use: lang === 'es' ? 'Auditoría, versiones' : 'Audit trails, versions' },
+        { name: 'MVRegister', badge: 'State', bc: 'dim', desc: lang === 'es' ? 'Multi-valor. Preserva escrituras concurrentes.' : 'Multi-value. Preserves concurrent writes.', use: lang === 'es' ? 'Auditoria, versiones' : 'Audit trails, versions' },
       ]},
       { cat: lang === 'es' ? 'Conjuntos' : 'Sets', items: [
-        { name: 'GSet', badge: 'State', bc: 'dim', desc: lang === 'es' ? 'Solo-crecimiento. Unión al merge.' : 'Grow-only. Union on merge.', use: lang === 'es' ? 'IDs vistos, tags' : 'Seen IDs, tags' },
+        { name: 'GSet', badge: 'State', bc: 'dim', desc: lang === 'es' ? 'Solo-crecimiento. Union al merge.' : 'Grow-only. Union on merge.', use: lang === 'es' ? 'IDs vistos, tags' : 'Seen IDs, tags' },
         { name: 'TwoPSet', badge: 'State', bc: 'dim', desc: lang === 'es' ? 'Add + remove permanente.' : 'Add + permanent remove.', use: lang === 'es' ? 'Blocklists, bans' : 'Blocklists, bans' },
         { name: 'ORSet', badge: 'DeltaCrdt', bc: 'teal', desc: lang === 'es' ? 'Add y remove libre. Add gana en concurrencia.' : 'Add & remove freely. Add wins on concurrent.', use: lang === 'es' ? 'Carritos, miembros' : 'Carts, members' },
       ]},
       { cat: lang === 'es' ? 'Secuencias' : 'Sequences', items: [
         { name: 'Rga', badge: 'State', bc: 'dim', desc: lang === 'es' ? 'Array replicado. Insert, remove, move.' : 'Replicated Growable Array. Insert, remove, move.', use: lang === 'es' ? 'Playlists, kanban' : 'Playlists, kanban' },
-        { name: 'TextCrdt', badge: 'State', bc: 'dim', desc: lang === 'es' ? 'Texto colaborativo. insert_str(), remove_range(), fork().' : 'Collaborative text. insert_str(), remove_range(), fork().', use: lang === 'es' ? 'Edición tipo Google Docs' : 'Google Docs-style editing' },
+        { name: 'TextCrdt', badge: 'State', bc: 'dim', desc: lang === 'es' ? 'Texto colaborativo. insert_str(), remove_range(), fork().' : 'Collaborative text. insert_str(), remove_range(), fork().', use: lang === 'es' ? 'Edicion tipo Google Docs' : 'Google Docs-style editing' },
       ]},
     ].map(({ cat, items }) => (
       <div class="mb-6">
         <h3 class="text-xs uppercase tracking-widest text-text-dim mb-3">{cat}</h3>
-        <div class={`grid gap-3 ${items.length === 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
+        <div class:list={['grid gap-3', items.length === 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-2']}>
           {items.map(({ name, badge, bc, desc, use: useCase }) => (
-            <a href={`https://docs.rs/crdt-kit/latest/crdt_kit/struct.${name}.html`} target="_blank"
+            <a href={'https://docs.rs/crdt-kit/latest/crdt_kit/struct.' + name + '.html'} target="_blank"
               class="block bg-bg-card border border-border rounded-xl p-5 hover:border-teal transition-all group">
               <div class="flex items-center justify-between mb-2">
                 <h4 class="font-bold text-sm group-hover:text-teal transition-colors">{name}</h4>
-                <span class={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
-                  bc === 'teal' ? 'bg-teal/10 text-teal' : 'bg-text-dim/10 text-text-dim'
-                }`}>{badge}</span>
+                <span class:list={['text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded', bc === 'teal' ? 'bg-teal/10 text-teal' : 'bg-text-dim/10 text-text-dim']}>{badge}</span>
               </div>
               <p class="text-text-dim text-xs leading-relaxed mb-2">{desc}</p>
               <p class="text-text-dim text-[10px] italic">{useCase}</p>
@@ -213,23 +263,15 @@ const { lang } = Astro.props;
     <h2 class="text-3xl font-extrabold tracking-tight text-center mb-12">{t(lang, 'qs.title')}</h2>
 
     <div class="grid md:grid-cols-2 gap-4 mb-8">
-      <CodeBlock title="Cargo.toml">
-        <span class="syn-k">[dependencies]</span>{'\n'}<span class="text-text">crdt-kit</span> = <span class="syn-s">"0.3"</span>
-      </CodeBlock>
-      <CodeBlock title="main.rs">
-        <span class="syn-k">use</span> crdt_kit::prelude::*;{'\n\n'}<span class="syn-c">// Two devices, working offline</span>{'\n'}<span class="syn-k">let mut</span> phone = GCounter::new(<span class="syn-s">"phone"</span>);{'\n'}phone.increment();{'\n'}phone.increment();{'\n\n'}<span class="syn-k">let mut</span> laptop = GCounter::new(<span class="syn-s">"laptop"</span>);{'\n'}laptop.increment();{'\n\n'}<span class="syn-c">// Reconnect — merge. Always converges.</span>{'\n'}phone.merge(&laptop);{'\n'}<span class="syn-k">assert_eq!</span>(phone.value(), <span class="syn-n">3</span>);
-      </CodeBlock>
+      <CodeBlock title="Cargo.toml" code={codeCargoToml} />
+      <CodeBlock title="main.rs" code={codeMainRs} />
     </div>
 
     <h3 class="text-lg font-bold text-center mb-4">Delta Sync</h3>
-    <CodeBlock title="delta_sync.rs">
-      <span class="syn-k">let mut</span> sensor = GCounter::new(<span class="syn-s">"sensor-a"</span>);{'\n'}sensor.increment_by(<span class="syn-n">142</span>);{'\n\n'}<span class="syn-k">let mut</span> gateway = GCounter::new(<span class="syn-s">"gateway"</span>);{'\n\n'}<span class="syn-c">// Delta: only send what the gateway doesn't have</span>{'\n'}<span class="syn-k">let</span> delta = sensor.delta(&gateway);{'\n'}gateway.apply_delta(&delta);{'\n'}<span class="syn-k">assert_eq!</span>(gateway.value(), <span class="syn-n">142</span>);
-    </CodeBlock>
+    <CodeBlock title="delta_sync.rs" code={codeDeltaSync} />
 
-    <h3 class="text-lg font-bold text-center mt-10 mb-4">{t(lang, 'feat.migrate_title' as any) || 'Schema Migrations'}</h3>
-    <CodeBlock title="migration.rs">
-      <span class="syn-k">use</span> crdt_migrate::{'{'}crdt_schema, migration{'}'};{'\n\n'}<span class="syn-p">#[crdt_schema(version = 1, table = "sensors")]</span>{'\n'}<span class="syn-k">struct</span> SensorV1 {'{'} device_id: <span class="syn-t">String</span>, temperature: <span class="syn-t">f32</span> {'}'}{'\n\n'}<span class="syn-p">#[crdt_schema(version = 2, table = "sensors")]</span>{'\n'}<span class="syn-k">struct</span> SensorV2 {'{'} device_id: <span class="syn-t">String</span>, temperature: <span class="syn-t">f32</span>, humidity: Option&lt;<span class="syn-t">f32</span>&gt; {'}'}{'\n\n'}<span class="syn-p">#[migration(from = 1, to = 2)]</span>{'\n'}<span class="syn-k">fn</span> add_humidity(old: SensorV1) -&gt; SensorV2 {'{'}{'\n'}  SensorV2 {'{'} device_id: old.device_id, temperature: old.temperature, humidity: None {'}'}{'\n'}{'}'}{'\n'}<span class="syn-c">// v1 records auto-migrate to v2 on load</span>
-    </CodeBlock>
+    <h3 class="text-lg font-bold text-center mt-10 mb-4">Schema Migrations</h3>
+    <CodeBlock title="migration.rs" code={codeMigration} />
   </div>
 </section>
 
@@ -239,15 +281,15 @@ const { lang } = Astro.props;
     <h2 class="text-3xl font-extrabold tracking-tight text-center mb-3">{t(lang, 'arch.title')}</h2>
     <p class="text-text-dim text-center max-w-xl mx-auto mb-12">{t(lang, 'arch.sub')}</p>
     <div class="flex flex-col md:flex-row justify-center items-stretch gap-4 mb-10">
-      {[['1', 'arch.s1', 'arch.s1d'], ['2', 'arch.s2', 'arch.s2d'], ['3', 'arch.s3', 'arch.s3d']].map(([num, title, desc], i) => (
-        <>
+      {[['1', 'arch.s1', 'arch.s1d'], ['2', 'arch.s2', 'arch.s2d'], ['3', 'arch.s3', 'arch.s3d']].map(([num, titleK, descK], i) => (
+        <div class="contents">
           <div class="bg-bg-card border border-border rounded-xl p-6 max-w-[260px] text-center flex-1">
             <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-teal/10 text-teal font-extrabold text-sm mb-3">{num}</span>
-            <h4 class="font-bold mb-2">{t(lang, title as any)}</h4>
-            <p class="text-text-dim text-xs leading-relaxed">{t(lang, desc as any)}</p>
+            <h4 class="font-bold mb-2">{t(lang, titleK as any)}</h4>
+            <p class="text-text-dim text-xs leading-relaxed">{t(lang, descK as any)}</p>
           </div>
-          {i < 2 && <span class="hidden md:flex items-center text-text-dim text-2xl">→</span>}
-        </>
+          {i < 2 && <span class="hidden md:flex items-center text-text-dim text-2xl">&rarr;</span>}
+        </div>
       ))}
     </div>
   </div>
@@ -267,7 +309,7 @@ const { lang } = Astro.props;
         ['use.wasmuc', 'use.wasmd', 'purple'],
       ].map(([titleKey, descKey, color]) => (
         <div class="bg-bg-card border border-border rounded-xl p-5 hover:border-text-dim transition-all hover:-translate-y-0.5">
-          <div class={`w-2 h-2 rounded-full mb-3 ${color === 'teal' ? 'bg-teal' : color === 'orange' ? 'bg-orange' : 'bg-purple'}`}></div>
+          <div class:list={['w-2 h-2 rounded-full mb-3', colorClasses(color as string, 'dot')]}></div>
           <h3 class="font-bold text-sm mb-2">{t(lang, titleKey as any)}</h3>
           <p class="text-text-dim text-xs leading-relaxed">{t(lang, descKey as any)}</p>
         </div>
@@ -283,18 +325,18 @@ const { lang } = Astro.props;
     <p class="text-text-dim text-center max-w-xl mx-auto mb-12">{t(lang, 'eco.sub')}</p>
     <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {[
-        ['crdt-kit', '9 CRDTs + HLC + traits', 'std · serde · wasm'],
-        ['crdt-store', 'SQLite, redb, memory + CrdtDb', 'sqlite · redb'],
+        ['crdt-kit', '9 CRDTs + HLC + traits', 'std \u00b7 serde \u00b7 wasm'],
+        ['crdt-store', 'SQLite, redb, memory + CrdtDb', 'sqlite \u00b7 redb'],
         ['crdt-migrate', 'Version envelopes + migration engine', 'macros'],
-        ['crdt-codegen', 'TOML schema → persistence layer', '—'],
-        ['crdt-cli', 'generate, dev-ui, inspect, compact, export', '—'],
-        ['crdt-dev-ui', 'Embedded dark-themed web inspector', '—'],
+        ['crdt-codegen', 'TOML schema \u2192 persistence layer', '\u2014'],
+        ['crdt-cli', 'generate, dev-ui, inspect, compact, export', '\u2014'],
+        ['crdt-dev-ui', 'Embedded dark-themed web inspector', '\u2014'],
       ].map(([name, desc, flags]) => (
-        <a href={`https://crates.io/crates/${name}`} target="_blank"
+        <a href={'https://crates.io/crates/' + name} target="_blank"
           class="block bg-bg-card border border-border rounded-xl p-5 hover:border-teal hover:-translate-y-0.5 transition-all text-text">
           <div class="flex items-center justify-between mb-2">
             <h3 class="font-mono font-bold text-sm">{name}</h3>
-            <img src={`https://img.shields.io/crates/v/${name}?style=flat-square&color=00C9A7`} alt="" class="h-4" />
+            <img src={'https://img.shields.io/crates/v/' + name + '?style=flat-square&color=00C9A7'} alt="" class="h-4" />
           </div>
           <p class="text-text-dim text-xs leading-relaxed mb-2">{desc}</p>
           <span class="text-text-dim text-[10px] italic">{flags}</span>
@@ -327,12 +369,12 @@ const { lang } = Astro.props;
         </tr></thead>
         <tbody class="divide-y divide-border">
           {[
-            ['GCounter increment ×1000', '53 µs', '~19M ops/sec'],
-            ['GCounter merge 10 replicas', '1.1 µs', '~9M merges/sec'],
-            ['PNCounter inc+dec ×1000', '60 µs', '~16M ops/sec'],
-            ['ORSet insert ×1000', '187 µs', '~5M ops/sec'],
-            ['ORSet merge 500+500', '191 µs', '—'],
-            ['LWWRegister merge 100 replicas', '11.5 µs', '~8M merges/sec'],
+            ['GCounter increment x1000', '53 us', '~19M ops/sec'],
+            ['GCounter merge 10 replicas', '1.1 us', '~9M merges/sec'],
+            ['PNCounter inc+dec x1000', '60 us', '~16M ops/sec'],
+            ['ORSet insert x1000', '187 us', '~5M ops/sec'],
+            ['ORSet merge 500+500', '191 us', '\u2014'],
+            ['LWWRegister merge 100 replicas', '11.5 us', '~8M merges/sec'],
           ].map(([op, time, tp]) => (
             <tr>
               <td class="py-2 px-4">{op}</td>
@@ -353,14 +395,14 @@ const { lang } = Astro.props;
     <p class="text-text-dim text-center max-w-xl mx-auto mb-10">{t(lang, 'guar.sub')}</p>
     <div class="grid sm:grid-cols-3 gap-4">
       {[
-        ['a ⊕ b = b ⊕ a', 'guar.comm', 'guar.commd'],
-        ['(a ⊕ b) ⊕ c = a ⊕ (b ⊕ c)', 'guar.assoc', 'guar.assocd'],
-        ['a ⊕ a = a', 'guar.idem', 'guar.idemd'],
-      ].map(([sym, title, desc]) => (
+        ['a \u2295 b = b \u2295 a', 'guar.comm', 'guar.commd'],
+        ['(a \u2295 b) \u2295 c = a \u2295 (b \u2295 c)', 'guar.assoc', 'guar.assocd'],
+        ['a \u2295 a = a', 'guar.idem', 'guar.idemd'],
+      ].map(([sym, titleK, descK]) => (
         <div class="bg-bg-card border border-border rounded-xl p-6 text-center">
           <div class="font-mono text-teal text-lg mb-3">{sym}</div>
-          <h3 class="font-bold text-sm mb-1">{t(lang, title as any)}</h3>
-          <p class="text-text-dim text-xs">{t(lang, desc as any)}</p>
+          <h3 class="font-bold text-sm mb-1">{t(lang, titleK as any)}</h3>
+          <p class="text-text-dim text-xs">{t(lang, descK as any)}</p>
         </div>
       ))}
     </div>
