@@ -1,7 +1,7 @@
 ---
 import { t, type Lang } from '../i18n/translations';
 import DeviceAnimation from './DeviceAnimation.astro';
-import MergeVisualization from './MergeVisualization.astro';
+import MergeFlow from './MergeFlow.tsx';
 import CodeBlock from './CodeBlock.astro';
 import InteractiveDemo from './InteractiveDemo.tsx';
 
@@ -111,7 +111,7 @@ const codeMigration = [
       <p class="text-text-dim leading-relaxed">{t(lang, 'what.p2')}</p>
       <p class="text-text-dim leading-relaxed">{t(lang, 'what.p3')}</p>
     </div>
-    <MergeVisualization lang={lang} />
+    <MergeFlow client:visible lang={lang} />
   </div>
 </section>
 
