@@ -78,7 +78,7 @@ const en = {
   'eco.sub': '7 crates, independently versioned on crates.io. Use only what you need.',
 
   'demo.title': 'Interactive Demo',
-  'demo.sub': 'See CRDTs in action. Click buttons to simulate operations on distributed nodes.',
+  'demo.sub': 'Two devices, one chat. Send messages offline, then sync — CRDTs guarantee convergence.',
 
   'perf.title': 'Performance',
   'perf.sub': 'Measured with Criterion on optimized builds.',
@@ -174,7 +174,7 @@ const es: typeof en = {
   'eco.sub': '7 crates, versionados independientemente en crates.io. Usa solo lo que necesites.',
 
   'demo.title': 'Demo Interactivo',
-  'demo.sub': 'Mira los CRDTs en acción. Haz clic para simular operaciones en nodos distribuidos.',
+  'demo.sub': 'Dos dispositivos, un chat. Envía mensajes offline, sincroniza — los CRDTs garantizan convergencia.',
 
   'perf.title': 'Rendimiento',
   'perf.sub': 'Medido con Criterion en builds optimizados.',

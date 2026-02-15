@@ -1,6 +1,7 @@
 ---
 import { t, type Lang } from '../i18n/translations';
 import DeviceAnimation from './DeviceAnimation.astro';
+import MergeVisualization from './MergeVisualization.astro';
 import CodeBlock from './CodeBlock.astro';
 import InteractiveDemo from './InteractiveDemo.tsx';
 
@@ -110,20 +111,7 @@ const codeMigration = [
       <p class="text-text-dim leading-relaxed">{t(lang, 'what.p2')}</p>
       <p class="text-text-dim leading-relaxed">{t(lang, 'what.p3')}</p>
     </div>
-    <div class="bg-bg-card border border-border rounded-xl p-6 overflow-x-auto">
-      <pre class="text-xs text-text-dim leading-snug"><code>+-----------+   +-----------+   +-----------+
-|  Device A |   |  Device B |   |  Device C |
-|  (offline)|   |  (offline)|   |  (offline)|
-+-----+-----+   +-----+-----+   +-----+-----+
-      |               |               |
-      +-------+-------+-------+-------+
-              |               |
-        +-----------+   +-----------+
-        |   merge   |   |   merge   |
-        +-----------+   +-----------+
-              |               |
-         <span class="text-teal font-bold">Same state!</span>      <span class="text-teal font-bold">Same state!</span></code></pre>
-    </div>
+    <MergeVisualization />
   </div>
 </section>
 
@@ -415,16 +403,29 @@ const codeMigration = [
     <h2 class="text-3xl font-extrabold tracking-tight text-center mb-12">{t(lang, 'cli.title')}</h2>
     <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {[
-        ['crdt status app.db', lang === 'es' ? 'Vista general de la base de datos.' : 'Database overview: namespaces, keys, size.'],
-        ['crdt inspect app.db sensor-42', lang === 'es' ? 'Detalle de entidad con event log.' : 'Entity detail with event log.'],
-        ['crdt compact app.db', lang === 'es' ? 'Snapshot + truncar event logs.' : 'Snapshot + truncate event logs.'],
-        ['crdt export app.db --namespace sensors', lang === 'es' ? 'Exportar JSON.' : 'JSON export.'],
-        ['crdt generate --schema schema.toml', lang === 'es' ? 'Generar capa de persistencia.' : 'Generate persistence layer.'],
-        ['crdt dev-ui app.db', lang === 'es' ? 'Panel web en localhost:4242.' : 'Web panel at localhost:4242.'],
-      ].map(([cmd, desc]) => (
-        <div class="bg-bg-card border border-border rounded-xl p-5">
-          <code class="block font-mono text-xs text-teal bg-bg border border-border rounded-md px-3 py-2 mb-3 overflow-x-auto">{cmd}</code>
-          <p class="text-text-dim text-xs">{desc}</p>
+        ['status', 'crdt status app.db', lang === 'es' ? 'Vista general de la base de datos.' : 'Database overview: namespaces, keys, size.', 'M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 00-.94-2.61'],
+        ['inspect', 'crdt inspect app.db sensor-42', lang === 'es' ? 'Detalle de entidad con event log.' : 'Entity detail with event log.', 'M15 12a3 3 0 11-6 0 3 3 0 016 0zM2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z'],
+        ['compact', 'crdt compact app.db', lang === 'es' ? 'Snapshot + truncar event logs.' : 'Snapshot + truncate event logs.', 'M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v14a2 2 0 01-2 2zM16 3v4a1 1 0 01-1 1H9a1 1 0 01-1-1V3'],
+        ['export', 'crdt export app.db --namespace sensors', lang === 'es' ? 'Exportar JSON.' : 'JSON export.', 'M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3'],
+        ['generate', 'crdt generate --schema schema.toml', lang === 'es' ? 'Generar capa de persistencia.' : 'Generate persistence layer.', 'M16 18l6-6-6-6M8 6l-6 6 6 6'],
+        ['dev-ui', 'crdt dev-ui app.db', lang === 'es' ? 'Panel web en localhost:4242.' : 'Web panel at localhost:4242.', 'M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z'],
+      ].map(([label, cmd, desc, icon]) => (
+        <div class="bg-bg border border-border rounded-xl overflow-hidden hover:border-text-dim transition-all hover:-translate-y-0.5 group">
+          <div class="flex items-center gap-2 px-4 py-2 bg-bg-card border-b border-border">
+            <span class="w-2 h-2 rounded-full bg-[#FF5F57]"></span>
+            <span class="w-2 h-2 rounded-full bg-[#FEBC2E]"></span>
+            <span class="w-2 h-2 rounded-full bg-[#28C840]"></span>
+            <span class="ml-auto font-mono text-[10px] text-text-dim">{label}</span>
+          </div>
+          <div class="p-4">
+            <div class="flex items-start gap-3 mb-3">
+              <div class="w-8 h-8 rounded-lg bg-teal/10 flex items-center justify-center shrink-0 group-hover:bg-teal/15 transition-colors">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00C9A7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d={icon as string}/></svg>
+              </div>
+              <code class="font-mono text-xs text-teal leading-relaxed pt-1.5">$ {cmd}</code>
+            </div>
+            <p class="text-text-dim text-xs leading-relaxed pl-11">{desc}</p>
+          </div>
         </div>
       ))}
     </div>
