@@ -16,8 +16,8 @@ edition = "2021"
 rust-version = "1.70"
 authors = ["abdielLopezpy"]
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/abdielLopezpy/crdt-kit"
-homepage = "https://github.com/abdielLopezpy/crdt-kit"
+repository = "https://github.com/crdt-kit/crdt-kit"
+homepage = "https://github.com/crdt-kit/crdt-kit"
 
 [workspace.dependencies]
 serde = { version = "1", features = ["derive"] }
