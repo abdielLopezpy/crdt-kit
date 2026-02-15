@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>crdt-kit — Conflict-Free Replicated Data Types for Rust</title>
+  <meta name="description" content="Lightweight (~50KB), no_std compatible CRDTs optimized for IoT, edge computing, WASM, and local-first architectures.">
+  <meta name="keywords" content="crdt, rust, conflict-free, distributed, edge computing, iot, wasm, local-first">
+  <meta property="og:title" content="crdt-kit — CRDTs for Rust">
+  <meta property="og:description" content="Lightweight (~50KB), no_std compatible CRDTs optimized for IoT, edge computing, WASM, and local-first architectures.">
+  <meta property="og:image" content="https://raw.githubusercontent.com/crdt-kit/crdt-kit/master/assets/banner.png">
+  <meta property="og:type" content="website">
+  <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/crdt-kit/crdt-kit/master/assets/logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Navigation -->
+  <nav class="nav">
+    <div class="nav-inner">
+      <a href="#" class="nav-logo">
+        <img src="https://raw.githubusercontent.com/crdt-kit/crdt-kit/master/assets/logo.png" alt="crdt-kit" width="32" height="32">
+        <span>crdt-kit</span>
+      </a>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#crdts">CRDTs</a>
+        <a href="#ecosystem">Ecosystem</a>
+        <a href="https://docs.rs/crdt-kit" target="_blank" rel="noopener">Docs</a>
+        <a href="https://github.com/crdt-kit/crdt-kit" target="_blank" rel="noopener" class="nav-github">
+          <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-bg"></div>
+    <div class="container">
+      <img src="https://raw.githubusercontent.com/crdt-kit/crdt-kit/master/assets/banner.png" alt="crdt-kit" class="hero-banner">
+      <p class="hero-tagline">Conflict-Free Replicated Data Types for Rust</p>
+      <p class="hero-sub">Lightweight (~50KB), <code>no_std</code> compatible, optimized for IoT, edge computing, WASM, and local-first architectures.</p>
+      <div class="hero-badges">
+        <a href="https://crates.io/crates/crdt-kit" target="_blank" rel="noopener"><img src="https://img.shields.io/crates/v/crdt-kit.svg?style=flat-square&logo=rust&color=e6522c" alt="Crates.io"></a>
+        <a href="https://docs.rs/crdt-kit" target="_blank" rel="noopener"><img src="https://img.shields.io/docsrs/crdt-kit?style=flat-square&logo=docs.rs&color=1a6fe6" alt="Docs.rs"></a>
+        <a href="https://github.com/crdt-kit/crdt-kit/actions" target="_blank" rel="noopener"><img src="https://img.shields.io/github/actions/workflow/status/crdt-kit/crdt-kit/ci.yml?branch=master&style=flat-square&logo=github&label=CI" alt="CI"></a>
+        <a href="https://github.com/crdt-kit/crdt-kit/blob/master/LICENSE-MIT" target="_blank" rel="noopener"><img src="https://img.shields.io/crates/l/crdt-kit.svg?style=flat-square&color=blue" alt="License"></a>
+      </div>
+      <div class="hero-actions">
+        <a href="#quickstart" class="btn btn-primary">Get Started</a>
+        <a href="https://github.com/crdt-kit/crdt-kit" target="_blank" rel="noopener" class="btn btn-outline">View on GitHub</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Why -->
+  <section class="section" id="why">
+    <div class="container">
+      <h2 class="section-title">Why crdt-kit?</h2>
+      <p class="section-desc">Traditional sync solutions break when devices go offline. CRDTs solve this at the data structure level &mdash; every replica can be updated independently, and <strong>merges always converge to the same result</strong>, guaranteed by math, not by servers.</p>
+      <div class="diagram">
+        <pre><code>+-----------+     +-----------+     +-----------+
+|  Device A |     |  Device B |     |  Device C |
+|  (offline)|     |  (offline)|     |  (offline)|
++-----+-----+     +-----+-----+     +-----+-----+
+      |                 |                 |
+      |  local edits    |  local edits    |  local edits
+      |                 |                 |
+      +--------+--------+--------+--------+
+               |                 |
+               v                 v
+         +-----------+     +-----------+
+         |   merge   |     |   merge   |
+         +-----------+     +-----------+
+               |                 |
+               v                 v
+          Same state!       Same state!    &lt;-- Strong Eventual Consistency</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section class="section section-dark" id="features">
+    <div class="container">
+      <h2 class="section-title">Built for the Edge</h2>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon feature-icon-teal">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+          </div>
+          <h3>no_std / Embedded</h3>
+          <p>Runs on bare metal, Raspberry Pi, ESP32. No heap allocator required for core types.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon feature-icon-orange">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          </div>
+          <h3>Delta Sync</h3>
+          <p>Only send what changed. Minimizes bandwidth on LoRa, BLE, and constrained networks.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon feature-icon-purple">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0022 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+          </div>
+          <h3>WASM Ready</h3>
+          <p>First-class WebAssembly bindings. Use the same CRDTs in browser, Node.js, and server.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon feature-icon-teal">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h14a2 2 0 002-2V7.5L14.5 2H6a2 2 0 00-2 2v4"/><polyline points="14 2 14 8 20 8"/><path d="M3 15h6"/><path d="M6 12v6"/></svg>
+          </div>
+          <h3>Schema Migrations</h3>
+          <p>Transparent, lazy migrations on read. Data evolves safely between app versions.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon feature-icon-orange">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+          </div>
+          <h3>Persistent Storage</h3>
+          <p>SQLite, redb, or in-memory. Event sourcing, snapshots, and compaction built in.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon feature-icon-purple">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          </div>
+          <h3>Code Generation</h3>
+          <p>Define entities in TOML, generate the entire persistence layer. Repository pattern, hexagonal architecture.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Comparison -->
+  <section class="section" id="comparison">
+    <div class="container">
+      <h2 class="section-title">How It Compares</h2>
+      <div class="table-wrapper">
+        <table class="comparison-table">
+          <thead>
+            <tr>
+              <th></th>
+              <th class="highlight">crdt-kit</th>
+              <th>Automerge</th>
+              <th>Yjs</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>Zero dependencies (core)</td><td class="highlight yes">Yes</td><td class="no">No (30+)</td><td class="no">N/A (JS)</td></tr>
+            <tr><td>no_std / embedded</td><td class="highlight yes">Yes</td><td class="no">No</td><td class="no">No</td></tr>
+            <tr><td>WASM-ready</td><td class="highlight yes">Yes</td><td class="partial">Partial</td><td class="yes">Native JS</td></tr>
+            <tr><td>Persistent storage</td><td class="highlight yes">SQLite, redb, memory</td><td class="no">Custom</td><td class="no">N/A</td></tr>
+            <tr><td>Schema migrations</td><td class="highlight yes">Automatic (lazy)</td><td class="no">Manual</td><td class="no">N/A</td></tr>
+            <tr><td>Delta sync</td><td class="highlight yes">Yes</td><td class="yes">Yes</td><td class="yes">Yes</td></tr>
+            <tr><td>Serde integration</td><td class="highlight yes">Yes</td><td class="no">Custom</td><td class="no">N/A</td></tr>
+            <tr><td>Pure Rust</td><td class="highlight yes">Yes</td><td class="yes">Yes</td><td class="no">No (JS)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Quick Start -->
+  <section class="section section-dark" id="quickstart">
+    <div class="container">
+      <h2 class="section-title">Quick Start</h2>
+      <div class="code-tabs">
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-dot red"></span>
+            <span class="code-dot yellow"></span>
+            <span class="code-dot green"></span>
+            <span class="code-title">Cargo.toml</span>
+          </div>
+          <pre><code class="language-toml"><span class="k">[dependencies]</span>
+<span class="v">crdt-kit</span> = <span class="s">"0.3"</span></code></pre>
+        </div>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-dot red"></span>
+            <span class="code-dot yellow"></span>
+            <span class="code-dot green"></span>
+            <span class="code-title">main.rs</span>
+          </div>
+          <pre><code class="language-rust"><span class="k">use</span> crdt_kit::prelude::*;
+
+<span class="c">// Two devices, working offline</span>
+<span class="k">let mut</span> phone = GCounter::new(<span class="s">"phone"</span>);
+phone.increment();
+phone.increment();
+
+<span class="k">let mut</span> laptop = GCounter::new(<span class="s">"laptop"</span>);
+laptop.increment();
+
+<span class="c">// When they reconnect &mdash; merge. Always converges.</span>
+phone.merge(&amp;laptop);
+<span class="k">assert_eq!</span>(phone.value(), <span class="n">3</span>);</code></pre>
+        </div>
+      </div>
+
+      <h3 class="subsection-title">With Persistence</h3>
+      <div class="code-block">
+        <div class="code-header">
+          <span class="code-dot red"></span>
+          <span class="code-dot yellow"></span>
+          <span class="code-dot green"></span>
+          <span class="code-title">main.rs</span>
+        </div>
+        <pre><code class="language-rust"><span class="k">use</span> crdt_store::{CrdtDb, CrdtVersioned, SqliteStore};
+<span class="k">use</span> serde::{Serialize, Deserialize};
+
+<span class="p">#[derive(Serialize, Deserialize)]</span>
+<span class="k">struct</span> SensorReading { temperature: <span class="t">f32</span>, humidity: <span class="t">f32</span> }
+
+<span class="k">impl</span> CrdtVersioned <span class="k">for</span> SensorReading {
+    <span class="k">const</span> SCHEMA_VERSION: <span class="t">u8</span> = <span class="n">1</span>;
+}
+
+<span class="k">let</span> store = SqliteStore::open(<span class="s">"sensors.db"</span>).unwrap();
+<span class="k">let mut</span> db = CrdtDb::with_store(store);
+
+<span class="c">// Save &mdash; automatically wrapped in a version envelope</span>
+db.save(<span class="s">"sensor-42"</span>, &amp;SensorReading {
+    temperature: <span class="n">22.5</span>, humidity: <span class="n">65.0</span>
+}).unwrap();
+
+<span class="c">// Load &mdash; automatically migrated if the schema changed</span>
+<span class="k">let</span> reading: Option&lt;SensorReading&gt; = db.load(<span class="s">"sensor-42"</span>).unwrap();</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- CRDTs -->
+  <section class="section" id="crdts">
+    <div class="container">
+      <h2 class="section-title">9 CRDT Types</h2>
+      <p class="section-desc">From simple counters to collaborative text editing. Every type is <code>Send + Sync</code>, <code>serde</code>-ready, and mathematically convergent.</p>
+      <div class="crdt-grid">
+        <div class="crdt-category">
+          <h3 class="crdt-category-title">Counters</h3>
+          <div class="crdt-card">
+            <h4><a href="https://docs.rs/crdt-kit/latest/crdt_kit/struct.GCounter.html" target="_blank" rel="noopener">GCounter</a></h4>
+            <p>Grow-only counter</p>
+            <span class="crdt-use">Page views, IoT sensor events</span>
+          </div>
+          <div class="crdt-card">
+            <h4><a href="https://docs.rs/crdt-kit/latest/crdt_kit/struct.PNCounter.html" target="_blank" rel="noopener">PNCounter</a></h4>
+            <p>Increment &amp; decrement</p>
+            <span class="crdt-use">Inventory, likes/dislikes</span>
+          </div>
+        </div>
+        <div class="crdt-category">
+          <h3 class="crdt-category-title">Registers</h3>
+          <div class="crdt-card">
+            <h4><a href="https://docs.rs/crdt-kit/latest/crdt_kit/struct.LWWRegister.html" target="_blank" rel="noopener">LWWRegister</a></h4>
+            <p>Last-writer-wins</p>
+            <span class="crdt-use">User profiles, config settings</span>
+          </div>
+          <div class="crdt-card">
+            <h4><a href="https://docs.rs/crdt-kit/latest/crdt_kit/struct.MVRegister.html" target="_blank" rel="noopener">MVRegister</a></h4>
+            <p>Multi-value (shows conflicts)</p>
+            <span class="crdt-use">Version tracking, auditing</span>
+          </div>
+        </div>
+        <div class="crdt-category">
+          <h3 class="crdt-category-title">Sets</h3>
+          <div class="crdt-card">
+            <h4><a href="https://docs.rs/crdt-kit/latest/crdt_kit/struct.GSet.html" target="_blank" rel="noopener">GSet</a></h4>
+            <p>Grow-only set</p>
+            <span class="crdt-use">Seen IDs, audit logs</span>
+          </div>
+          <div class="crdt-card">
+            <h4><a href="https://docs.rs/crdt-kit/latest/crdt_kit/struct.TwoPSet.html" target="_blank" rel="noopener">TwoPSet</a></h4>
+            <p>Add &amp; permanent remove</p>
+            <span class="crdt-use">Blocklists, revoked tokens</span>
+          </div>
+          <div class="crdt-card">
+            <h4><a href="https://docs.rs/crdt-kit/latest/crdt_kit/struct.ORSet.html" target="_blank" rel="noopener">ORSet</a></h4>
+            <p>Add &amp; remove freely</p>
+            <span class="crdt-use">Shopping carts, chat members</span>
+          </div>
+        </div>
+        <div class="crdt-category">
+          <h3 class="crdt-category-title">Sequences</h3>
+          <div class="crdt-card">
+            <h4><a href="https://docs.rs/crdt-kit/latest/crdt_kit/struct.Rga.html" target="_blank" rel="noopener">Rga</a></h4>
+            <p>Replicated Growable Array</p>
+            <span class="crdt-use">Playlists, kanban boards</span>
+          </div>
+          <div class="crdt-card">
+            <h4><a href="https://docs.rs/crdt-kit/latest/crdt_kit/struct.TextCrdt.html" target="_blank" rel="noopener">TextCrdt</a></h4>
+            <p>Collaborative text</p>
+            <span class="crdt-use">Google Docs-style editing</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Ecosystem -->
+  <section class="section section-dark" id="ecosystem">
+    <div class="container">
+      <h2 class="section-title">Ecosystem</h2>
+      <p class="section-desc">A multi-crate workspace. Use only what you need.</p>
+      <div class="ecosystem-grid">
+        <a href="https://crates.io/crates/crdt-kit" target="_blank" rel="noopener" class="eco-card">
+          <div class="eco-header">
+            <h3>crdt-kit</h3>
+            <img src="https://img.shields.io/crates/v/crdt-kit?style=flat-square&color=00C9A7" alt="version">
+          </div>
+          <p>Core CRDT types: counters, registers, sets, sequences, collaborative text</p>
+          <span class="eco-flags">std &middot; serde &middot; wasm</span>
+        </a>
+        <a href="https://crates.io/crates/crdt-store" target="_blank" rel="noopener" class="eco-card">
+          <div class="eco-header">
+            <h3>crdt-store</h3>
+            <img src="https://img.shields.io/crates/v/crdt-store?style=flat-square&color=00C9A7" alt="version">
+          </div>
+          <p>Persistence backends: SQLite, redb, in-memory. Event sourcing &amp; snapshots.</p>
+          <span class="eco-flags">sqlite &middot; redb</span>
+        </a>
+        <a href="https://crates.io/crates/crdt-migrate" target="_blank" rel="noopener" class="eco-card">
+          <div class="eco-header">
+            <h3>crdt-migrate</h3>
+            <img src="https://img.shields.io/crates/v/crdt-migrate?style=flat-square&color=00C9A7" alt="version">
+          </div>
+          <p>Versioned serialization with automatic schema migrations. Lazy, deterministic.</p>
+          <span class="eco-flags">macros</span>
+        </a>
+        <a href="https://crates.io/crates/crdt-codegen" target="_blank" rel="noopener" class="eco-card">
+          <div class="eco-header">
+            <h3>crdt-codegen</h3>
+            <img src="https://img.shields.io/crates/v/crdt-codegen?style=flat-square&color=00C9A7" alt="version">
+          </div>
+          <p>Schema-driven code generation for persistence layers from TOML definitions.</p>
+          <span class="eco-flags">&mdash;</span>
+        </a>
+        <a href="https://crates.io/crates/crdt-cli" target="_blank" rel="noopener" class="eco-card">
+          <div class="eco-header">
+            <h3>crdt-cli</h3>
+            <img src="https://img.shields.io/crates/v/crdt-cli?style=flat-square&color=00C9A7" alt="version">
+          </div>
+          <p>CLI tool: <code>crdt generate</code>, <code>crdt dev-ui</code>, <code>crdt inspect</code>, <code>crdt compact</code></p>
+          <span class="eco-flags">&mdash;</span>
+        </a>
+        <a href="https://crates.io/crates/crdt-dev-ui" target="_blank" rel="noopener" class="eco-card">
+          <div class="eco-header">
+            <h3>crdt-dev-ui</h3>
+            <img src="https://img.shields.io/crates/v/crdt-dev-ui?style=flat-square&color=00C9A7" alt="version">
+          </div>
+          <p>Embedded dark-themed web panel for database inspection during development.</p>
+          <span class="eco-flags">&mdash;</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Performance -->
+  <section class="section" id="performance">
+    <div class="container">
+      <h2 class="section-title">Performance</h2>
+      <p class="section-desc">Measured with <a href="https://github.com/bheisler/criterion.rs" target="_blank" rel="noopener">Criterion</a> on optimized builds.</p>
+      <div class="table-wrapper">
+        <table class="perf-table">
+          <thead>
+            <tr><th>Operation</th><th>Time</th><th>Throughput</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>GCounter increment &times;1000</td><td><strong>53 &micro;s</strong></td><td>~19M ops/sec</td></tr>
+            <tr><td>GCounter merge 10 replicas</td><td><strong>1.1 &micro;s</strong></td><td>~9M merges/sec</td></tr>
+            <tr><td>GCounter merge 100 replicas</td><td><strong>17.8 &micro;s</strong></td><td>&mdash;</td></tr>
+            <tr><td>PNCounter inc+dec &times;1000</td><td><strong>60 &micro;s</strong></td><td>~16M ops/sec</td></tr>
+            <tr><td>ORSet insert &times;1000</td><td><strong>187 &micro;s</strong></td><td>~5M ops/sec</td></tr>
+            <tr><td>ORSet merge 500+500 elements</td><td><strong>191 &micro;s</strong></td><td>&mdash;</td></tr>
+            <tr><td>GSet merge 1000+1000 elements</td><td><strong>102 &micro;s</strong></td><td>&mdash;</td></tr>
+            <tr><td>LWWRegister merge 100 replicas</td><td><strong>11.5 &micro;s</strong></td><td>~8M merges/sec</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Guarantees -->
+  <section class="section section-dark" id="guarantees">
+    <div class="container">
+      <h2 class="section-title">Mathematical Guarantees</h2>
+      <p class="section-desc">All CRDTs satisfy <strong>Strong Eventual Consistency (SEC)</strong>. Verified by 268 tests.</p>
+      <div class="guarantees-grid">
+        <div class="guarantee-card">
+          <div class="guarantee-symbol">a &oplus; b = b &oplus; a</div>
+          <h3>Commutativity</h3>
+          <p>Order of sync doesn't matter</p>
+        </div>
+        <div class="guarantee-card">
+          <div class="guarantee-symbol">(a &oplus; b) &oplus; c = a &oplus; (b &oplus; c)</div>
+          <h3>Associativity</h3>
+          <p>Group syncs however you want</p>
+        </div>
+        <div class="guarantee-card">
+          <div class="guarantee-symbol">a &oplus; a = a</div>
+          <h3>Idempotency</h3>
+          <p>Safe to retry &mdash; no duplicates</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="section cta">
+    <div class="container">
+      <h2>Start building offline-first</h2>
+      <div class="cta-install">
+        <code>cargo add crdt-kit</code>
+      </div>
+      <div class="hero-actions">
+        <a href="https://docs.rs/crdt-kit" target="_blank" rel="noopener" class="btn btn-primary">Read the Docs</a>
+        <a href="https://github.com/crdt-kit/crdt-kit" target="_blank" rel="noopener" class="btn btn-outline">GitHub</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-inner">
+        <div class="footer-logo">
+          <img src="https://raw.githubusercontent.com/crdt-kit/crdt-kit/master/assets/logo.png" alt="crdt-kit" width="24" height="24">
+          <span>crdt-kit</span>
+        </div>
+        <div class="footer-links">
+          <a href="https://docs.rs/crdt-kit" target="_blank" rel="noopener">Docs</a>
+          <a href="https://crates.io/crates/crdt-kit" target="_blank" rel="noopener">Crates.io</a>
+          <a href="https://github.com/crdt-kit/crdt-kit" target="_blank" rel="noopener">GitHub</a>
+          <a href="https://github.com/crdt-kit/crdt-kit/blob/master/CHANGELOG.md" target="_blank" rel="noopener">Changelog</a>
+        </div>
+        <p class="footer-copy">MIT / Apache 2.0</p>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>
