@@ -148,7 +148,7 @@ fn collaborative_description() {
 
     // Product manager creates the initial description
     let mut pm = TextCrdt::new("product-manager");
-    pm.insert_str(0, "Ergonomic office chair");
+    pm.insert_str(0, "Ergonomic office chair").unwrap();
     println!("  PM writes:        \"{}\"", pm);
 
     // Designer and copywriter fork to make concurrent edits
@@ -157,11 +157,11 @@ fn collaborative_description() {
 
     // Designer adds material info at the end
     let len = designer.len();
-    designer.insert_str(len, " with lumbar support");
+    designer.insert_str(len, " with lumbar support").unwrap();
     println!("  Designer adds:    \"{}\"", designer);
 
     // Copywriter adds a prefix
-    copywriter.insert_str(0, "[BESTSELLER] ");
+    copywriter.insert_str(0, "[BESTSELLER] ").unwrap();
     println!("  Copywriter adds:  \"{}\"", copywriter);
 
     // Merge all edits — both changes preserved

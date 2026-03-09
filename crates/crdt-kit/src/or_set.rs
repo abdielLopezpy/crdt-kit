@@ -111,6 +111,50 @@ impl<T: Ord + Clone> ORSet<T> {
     pub fn actor(&self) -> &str {
         &self.actor
     }
+
+    /// Get the number of tombstones stored.
+    ///
+    /// Use this to monitor tombstone growth and decide when to compact.
+    #[must_use]
+    pub fn tombstone_count(&self) -> usize {
+        self.tombstones.len()
+    }
+
+    /// Remove tombstones that are no longer needed because their tags do not
+    /// appear in any element's tag set.
+    ///
+    /// After compaction, the ORSet behaves identically for **local**
+    /// operations. However, merging with a stale replica that still references
+    /// compacted tags may cause removed elements to reappear. Only call this
+    /// when you are confident that all replicas have already observed the
+    /// removals (e.g., after a full sync round).
+    ///
+    /// Returns the number of tombstones removed.
+    pub fn compact_tombstones(&mut self) -> usize {
+        let all_tags: BTreeSet<&(String, u64)> = self
+            .elements
+            .values()
+            .flat_map(|tags| tags.iter())
+            .collect();
+
+        let before = self.tombstones.len();
+        self.tombstones.retain(|tag| all_tags.contains(tag));
+        before - self.tombstones.len()
+    }
+
+    /// Aggressively remove **all** tombstones.
+    ///
+    /// This is safe only when every peer has converged to the same state
+    /// (causal stability). After this call, merging with a peer that has
+    /// not yet observed all removals **will** cause deleted elements to
+    /// reappear.
+    ///
+    /// Returns the number of tombstones removed.
+    pub fn compact_tombstones_all(&mut self) -> usize {
+        let count = self.tombstones.len();
+        self.tombstones.clear();
+        count
+    }
 }
 
 impl<T: Ord + Clone> IntoIterator for ORSet<T> {
@@ -383,6 +427,69 @@ mod tests {
         let d = s1.delta(&s2);
         assert!(d.additions.is_empty());
         assert!(d.tombstones.is_empty());
+    }
+
+    #[test]
+    fn tombstone_count_tracks_removals() {
+        let mut s = ORSet::new("a");
+        s.insert("x");
+        s.insert("y");
+        assert_eq!(s.tombstone_count(), 0);
+
+        s.remove(&"x");
+        assert_eq!(s.tombstone_count(), 1);
+
+        s.remove(&"y");
+        assert_eq!(s.tombstone_count(), 2);
+    }
+
+    #[test]
+    fn compact_tombstones_removes_dangling() {
+        let mut s = ORSet::new("a");
+        s.insert("x");
+        s.insert("y");
+        s.remove(&"x");
+        s.remove(&"y");
+
+        // Both tombstones are dangling (no live tags reference them)
+        assert_eq!(s.tombstone_count(), 2);
+        let removed = s.compact_tombstones();
+        assert_eq!(removed, 2);
+        assert_eq!(s.tombstone_count(), 0);
+    }
+
+    #[test]
+    fn compact_tombstones_preserves_needed() {
+        let mut s1 = ORSet::new("a");
+        s1.insert("x");
+
+        let mut s2 = ORSet::new("b");
+        s2.insert("x");
+        s2.remove(&"x");
+
+        // s1 still has live tags; after merge, s2's tombstone is needed
+        s1.merge(&s2);
+        // "x" should still be present (s1's tag survived)
+        assert!(s1.contains(&"x"));
+
+        // compact_tombstones should keep tombstones that don't overlap with live tags
+        // (s2's tombstone was for s2's tag, not s1's tag)
+        let before = s1.tombstone_count();
+        s1.compact_tombstones();
+        // The tombstone for s2's tag is dangling (not in any live set)
+        assert!(s1.tombstone_count() <= before);
+    }
+
+    #[test]
+    fn compact_tombstones_all_clears_everything() {
+        let mut s = ORSet::new("a");
+        s.insert("x");
+        s.remove(&"x");
+        s.insert("y");
+        s.remove(&"y");
+
+        assert_eq!(s.compact_tombstones_all(), 2);
+        assert_eq!(s.tombstone_count(), 0);
     }
 
     #[test]

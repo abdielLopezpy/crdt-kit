@@ -1,8 +1,43 @@
 use alloc::collections::BTreeMap;
 use alloc::string::String;
 use alloc::vec::Vec;
+use core::fmt;
 
-use crate::Crdt;
+use crate::{Crdt, DeltaCrdt};
+
+/// Error type for TextCrdt operations.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TextError {
+    /// Index is out of bounds for the current visible text length.
+    IndexOutOfBounds {
+        /// The index that was requested.
+        index: usize,
+        /// The current length of the visible text.
+        len: usize,
+    },
+    /// Range is out of bounds for the current visible text length.
+    RangeOutOfBounds {
+        /// Start of the range.
+        start: usize,
+        /// End of the range (exclusive).
+        end: usize,
+        /// The current length of the visible text.
+        len: usize,
+    },
+}
+
+impl fmt::Display for TextError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::IndexOutOfBounds { index, len } => {
+                write!(f, "index {index} out of bounds for text of length {len}")
+            }
+            Self::RangeOutOfBounds { start, end, len } => {
+                write!(f, "range {start}..{end} out of bounds for text of length {len}")
+            }
+        }
+    }
+}
 
 /// A collaborative text CRDT based on RGA (Replicated Growable Array) principles.
 ///
@@ -21,10 +56,10 @@ use crate::Crdt;
 /// use crdt_kit::prelude::*;
 ///
 /// let mut t1 = TextCrdt::new("alice");
-/// t1.insert_str(0, "hello");
+/// t1.insert_str(0, "hello").unwrap();
 ///
 /// let mut t2 = TextCrdt::new("bob");
-/// t2.insert_str(0, "world");
+/// t2.insert_str(0, "world").unwrap();
 ///
 /// t1.merge(&t2);
 /// t2.merge(&t1);
@@ -42,18 +77,20 @@ pub struct TextCrdt {
     /// Tracks the maximum counter observed per actor, used during merge to
     /// avoid re-inserting elements that are already present.
     version: BTreeMap<String, u64>,
+    /// Cached count of visible (non-deleted) elements.
+    visible_len: usize,
 }
 
 /// A single element in the text sequence.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-struct Element {
+pub struct Element {
     /// Unique identifier: (actor, counter).
-    id: (String, u64),
+    pub id: (String, u64),
     /// The character value.
-    value: char,
+    pub value: char,
     /// Whether this element has been tombstoned (logically deleted).
-    deleted: bool,
+    pub deleted: bool,
 }
 
 impl TextCrdt {
@@ -64,6 +101,7 @@ impl TextCrdt {
             counter: 0,
             elements: Vec::new(),
             version: BTreeMap::new(),
+            visible_len: 0,
         }
     }
 
@@ -78,20 +116,17 @@ impl TextCrdt {
             counter: self.counter,
             elements: self.elements.clone(),
             version: self.version.clone(),
+            visible_len: self.visible_len,
         }
     }
 
     /// Insert a character at the given visible index.
     ///
-    /// # Panics
-    ///
-    /// Panics if `index` is greater than `self.len()`.
-    pub fn insert(&mut self, index: usize, ch: char) {
-        assert!(
-            index <= self.len(),
-            "index {index} out of bounds for text of length {}",
-            self.len()
-        );
+    /// Returns `Err(TextError::IndexOutOfBounds)` if `index` is greater than `self.len()`.
+    pub fn insert(&mut self, index: usize, ch: char) -> Result<(), TextError> {
+        if index > self.visible_len {
+            return Err(TextError::IndexOutOfBounds { index, len: self.visible_len });
+        }
 
         self.counter += 1;
         let id = (self.actor.clone(), self.counter);
@@ -108,6 +143,8 @@ impl TextCrdt {
 
         let raw_index = self.raw_index_for_insert(index);
         self.elements.insert(raw_index, elem);
+        self.visible_len += 1;
+        Ok(())
     }
 
     /// Insert a string at the given visible index.
@@ -115,61 +152,55 @@ impl TextCrdt {
     /// Characters are inserted left-to-right so that the resulting visible
     /// text contains the string starting at `index`.
     ///
-    /// # Panics
-    ///
-    /// Panics if `index` is greater than `self.len()`.
-    pub fn insert_str(&mut self, index: usize, s: &str) {
-        assert!(
-            index <= self.len(),
-            "index {index} out of bounds for text of length {}",
-            self.len()
-        );
+    /// Returns `Err(TextError::IndexOutOfBounds)` if `index` is greater than `self.len()`.
+    pub fn insert_str(&mut self, index: usize, s: &str) -> Result<(), TextError> {
+        if index > self.visible_len {
+            return Err(TextError::IndexOutOfBounds { index, len: self.visible_len });
+        }
 
         for (i, ch) in s.chars().enumerate() {
-            self.insert(index + i, ch);
+            self.insert(index + i, ch)?;
         }
+        Ok(())
     }
 
     /// Remove (tombstone) the character at the given visible index.
     ///
-    /// # Panics
-    ///
-    /// Panics if `index` is greater than or equal to `self.len()`.
-    pub fn remove(&mut self, index: usize) {
-        assert!(
-            index < self.len(),
-            "index {index} out of bounds for text of length {}",
-            self.len()
-        );
+    /// Returns `Err(TextError::IndexOutOfBounds)` if `index >= self.len()`.
+    pub fn remove(&mut self, index: usize) -> Result<(), TextError> {
+        if index >= self.visible_len {
+            return Err(TextError::IndexOutOfBounds { index, len: self.visible_len });
+        }
 
         let raw = self.visible_to_raw(index);
         self.elements[raw].deleted = true;
+        self.visible_len -= 1;
+        Ok(())
     }
 
-    /// Remove a range of characters starting at `start` with the given `len`.
+    /// Remove a range of characters starting at `start` with the given `count`.
     ///
-    /// # Panics
-    ///
-    /// Panics if `start + len` is greater than `self.len()`.
-    pub fn remove_range(&mut self, start: usize, len: usize) {
-        assert!(
-            start + len <= self.len(),
-            "range {}..{} out of bounds for text of length {}",
-            start,
-            start + len,
-            self.len()
-        );
+    /// Returns `Err(TextError::RangeOutOfBounds)` if `start + count > self.len()`.
+    pub fn remove_range(&mut self, start: usize, count: usize) -> Result<(), TextError> {
+        if start + count > self.visible_len {
+            return Err(TextError::RangeOutOfBounds {
+                start,
+                end: start + count,
+                len: self.visible_len,
+            });
+        }
 
         // Remove from right to left so that indices remain valid.
-        for i in (0..len).rev() {
-            self.remove(start + i);
+        for i in (0..count).rev() {
+            self.remove(start + i)?;
         }
+        Ok(())
     }
 
     /// Return the number of visible (non-deleted) characters.
     #[must_use]
     pub fn len(&self) -> usize {
-        self.elements.iter().filter(|e| !e.deleted).count()
+        self.visible_len
     }
 
     /// Check whether the visible text is empty.
@@ -226,11 +257,6 @@ impl TextCrdt {
         self.visible_to_raw(visible_index)
     }
 
-    /// Find the raw index of an element with the given `id`, or `None`.
-    fn find_by_id(&self, id: &(String, u64)) -> Option<usize> {
-        self.elements.iter().position(|e| &e.id == id)
-    }
-
     /// Determine where an element from a remote replica should be inserted
     /// based on RGA ordering.
     ///
@@ -261,53 +287,154 @@ impl TextCrdt {
         self.elements.len()
     }
 
-    /// Find the raw index in `self` of the causal predecessor of `elem` from
-    /// `other`. The predecessor is the element that directly precedes `elem`
-    /// in `other.elements`.
-    fn find_predecessor_raw(&self, other: &Self, elem: &Element) -> Option<usize> {
-        // Find the position of `elem` inside `other`.
-        let other_pos = other.elements.iter().position(|e| e.id == elem.id)?;
+}
 
-        if other_pos == 0 {
-            return None;
+/// Delta for [`TextCrdt`]: new elements and tombstone updates the other
+/// replica is missing.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct TextDelta {
+    /// Elements the other replica doesn't have yet.
+    pub new_elements: Vec<Element>,
+    /// IDs of elements that are deleted in source but not in other.
+    pub tombstoned_ids: Vec<(String, u64)>,
+    /// Version vector of the source.
+    pub version: BTreeMap<String, u64>,
+}
+
+impl DeltaCrdt for TextCrdt {
+    type Delta = TextDelta;
+
+    fn delta(&self, other: &Self) -> TextDelta {
+        let new_elements: Vec<_> = self
+            .elements
+            .iter()
+            .filter(|e| {
+                let actor_max = other.version.get(&e.id.0).copied().unwrap_or(0);
+                e.id.1 > actor_max
+            })
+            .cloned()
+            .collect();
+
+        let tombstoned_ids: Vec<_> = self
+            .elements
+            .iter()
+            .filter(|e| {
+                e.deleted && {
+                    // Only include if the other has this element but hasn't deleted it
+                    let actor_max = other.version.get(&e.id.0).copied().unwrap_or(0);
+                    e.id.1 <= actor_max
+                }
+            })
+            .map(|e| e.id.clone())
+            .collect();
+
+        TextDelta {
+            new_elements,
+            tombstoned_ids,
+            version: self.version.clone(),
         }
+    }
 
-        // Walk backwards in `other` to find the first predecessor that exists
-        // in `self`.
-        for i in (0..other_pos).rev() {
-            let pred_id = &other.elements[i].id;
-            if let Some(raw) = self.find_by_id(pred_id) {
-                return Some(raw);
+    fn apply_delta(&mut self, delta: &TextDelta) {
+        // Build index for O(log n) lookups.
+        let mut id_index: BTreeMap<(String, u64), usize> = self
+            .elements
+            .iter()
+            .enumerate()
+            .map(|(i, e)| (e.id.clone(), i))
+            .collect();
+
+        // Apply tombstones to existing elements.
+        for id in &delta.tombstoned_ids {
+            if let Some(&raw) = id_index.get(id) {
+                if !self.elements[raw].deleted {
+                    self.elements[raw].deleted = true;
+                    self.visible_len -= 1;
+                }
             }
         }
 
-        None
+        // Insert new elements at correct positions.
+        for (delta_idx, elem) in delta.new_elements.iter().enumerate() {
+            if !id_index.contains_key(&elem.id) {
+                let predecessor_raw = if delta_idx == 0 {
+                    None
+                } else {
+                    (0..delta_idx)
+                        .rev()
+                        .find_map(|i| id_index.get(&delta.new_elements[i].id).copied())
+                };
+
+                let pos = self.find_insert_position(elem, predecessor_raw);
+                self.elements.insert(pos, elem.clone());
+                if !elem.deleted {
+                    self.visible_len += 1;
+                }
+
+                for v in id_index.values_mut() {
+                    if *v >= pos {
+                        *v += 1;
+                    }
+                }
+                id_index.insert(elem.id.clone(), pos);
+            }
+        }
+
+        // Merge version vectors.
+        for (actor, &cnt) in &delta.version {
+            let entry = self.version.entry(actor.clone()).or_insert(0);
+            *entry = (*entry).max(cnt);
+        }
+
+        if let Some(&max_cnt) = self.version.values().max() {
+            self.counter = self.counter.max(max_cnt);
+        }
     }
 }
 
 impl Crdt for TextCrdt {
     fn merge(&mut self, other: &Self) {
-        // We integrate the remote elements one by one, in the order they
-        // appear in `other.elements`. For each remote element we either:
-        //   - update the tombstone flag if the element already exists locally,
-        //   - or insert it at the correct RGA position if it is new.
+        // Build an index for O(log n) ID→position lookups instead of O(n)
+        // linear scans. This reduces merge from O(m·n) to O(m·log n) for the
+        // lookup-dominated phase.
+        let mut id_index: BTreeMap<(String, u64), usize> = self
+            .elements
+            .iter()
+            .enumerate()
+            .map(|(i, e)| (e.id.clone(), i))
+            .collect();
 
-        for other_elem in &other.elements {
-            if let Some(raw) = self.find_by_id(&other_elem.id) {
+        for (other_idx, other_elem) in other.elements.iter().enumerate() {
+            if let Some(&raw) = id_index.get(&other_elem.id) {
                 // Element already present — propagate tombstones (delete wins).
-                if other_elem.deleted {
+                if other_elem.deleted && !self.elements[raw].deleted {
                     self.elements[raw].deleted = true;
+                    self.visible_len -= 1;
                 }
             } else {
-                // New element — figure out where to place it.
-                //
-                // In RGA the element is positioned *after* its causal
-                // predecessor (the element that was directly before it in the
-                // originating replica). We approximate this by looking at the
-                // element that precedes `other_elem` in `other.elements`.
-                let predecessor_raw = self.find_predecessor_raw(other, other_elem);
+                // New element — find its causal predecessor using the index.
+                let predecessor_raw = if other_idx == 0 {
+                    None
+                } else {
+                    (0..other_idx)
+                        .rev()
+                        .find_map(|i| id_index.get(&other.elements[i].id).copied())
+                };
+
                 let pos = self.find_insert_position(other_elem, predecessor_raw);
                 self.elements.insert(pos, other_elem.clone());
+                if !other_elem.deleted {
+                    self.visible_len += 1;
+                }
+
+                // Keep the index consistent after the Vec insertion.
+                for v in id_index.values_mut() {
+                    if *v >= pos {
+                        *v += 1;
+                    }
+                }
+                id_index.insert(other_elem.id.clone(), pos);
             }
         }
 
@@ -350,7 +477,7 @@ mod tests {
     #[test]
     fn insert_single_char() {
         let mut t = TextCrdt::new("a");
-        t.insert(0, 'x');
+        t.insert(0, 'x').unwrap();
         assert_eq!(t.to_string(), "x");
         assert_eq!(t.len(), 1);
     }
@@ -358,20 +485,20 @@ mod tests {
     #[test]
     fn insert_at_beginning_middle_end() {
         let mut t = TextCrdt::new("a");
-        t.insert(0, 'a'); // "a"
-        t.insert(1, 'c'); // "ac"
-        t.insert(1, 'b'); // "abc"
-        t.insert(0, 'z'); // "zabc"
+        t.insert(0, 'a').unwrap(); // "a"
+        t.insert(1, 'c').unwrap(); // "ac"
+        t.insert(1, 'b').unwrap(); // "abc"
+        t.insert(0, 'z').unwrap(); // "zabc"
         assert_eq!(t.to_string(), "zabc");
     }
 
     #[test]
     fn delete_char() {
         let mut t = TextCrdt::new("a");
-        t.insert_str(0, "hello");
+        t.insert_str(0, "hello").unwrap();
         assert_eq!(t.to_string(), "hello");
 
-        t.remove(1); // remove 'e'
+        t.remove(1).unwrap(); // remove 'e'
         assert_eq!(t.to_string(), "hllo");
         assert_eq!(t.len(), 4);
     }
@@ -379,7 +506,7 @@ mod tests {
     #[test]
     fn insert_str_basic() {
         let mut t = TextCrdt::new("a");
-        t.insert_str(0, "hello");
+        t.insert_str(0, "hello").unwrap();
         assert_eq!(t.to_string(), "hello");
         assert_eq!(t.len(), 5);
     }
@@ -387,32 +514,32 @@ mod tests {
     #[test]
     fn insert_str_at_middle() {
         let mut t = TextCrdt::new("a");
-        t.insert_str(0, "hd");
-        t.insert_str(1, "ello worl");
+        t.insert_str(0, "hd").unwrap();
+        t.insert_str(1, "ello worl").unwrap();
         assert_eq!(t.to_string(), "hello world");
     }
 
     #[test]
     fn remove_range_basic() {
         let mut t = TextCrdt::new("a");
-        t.insert_str(0, "hello world");
-        t.remove_range(5, 6); // remove " world"
+        t.insert_str(0, "hello world").unwrap();
+        t.remove_range(5, 6).unwrap(); // remove " world"
         assert_eq!(t.to_string(), "hello");
     }
 
     #[test]
     fn remove_range_from_start() {
         let mut t = TextCrdt::new("a");
-        t.insert_str(0, "hello");
-        t.remove_range(0, 3); // remove "hel"
+        t.insert_str(0, "hello").unwrap();
+        t.remove_range(0, 3).unwrap(); // remove "hel"
         assert_eq!(t.to_string(), "lo");
     }
 
     #[test]
     fn remove_all() {
         let mut t = TextCrdt::new("a");
-        t.insert_str(0, "abc");
-        t.remove_range(0, 3);
+        t.insert_str(0, "abc").unwrap();
+        t.remove_range(0, 3).unwrap();
         assert!(t.is_empty());
         assert_eq!(t.to_string(), "");
     }
@@ -420,10 +547,10 @@ mod tests {
     #[test]
     fn merge_disjoint_inserts() {
         let mut t1 = TextCrdt::new("alice");
-        t1.insert_str(0, "hello");
+        t1.insert_str(0, "hello").unwrap();
 
         let mut t2 = TextCrdt::new("bob");
-        t2.insert_str(0, "world");
+        t2.insert_str(0, "world").unwrap();
 
         t1.merge(&t2);
 
@@ -436,13 +563,13 @@ mod tests {
     #[test]
     fn merge_propagates_tombstones() {
         let mut t1 = TextCrdt::new("alice");
-        t1.insert_str(0, "abc");
+        t1.insert_str(0, "abc").unwrap();
 
         // Fork with a different actor to simulate a second replica that
         // received the same state. Only deletes here, so no new IDs needed,
         // but fork is still the safe pattern.
         let mut t2 = t1.fork("bob");
-        t2.remove(1); // delete 'b' on t2
+        t2.remove(1).unwrap(); // delete 'b' on t2
 
         t1.merge(&t2);
         assert_eq!(t1.to_string(), "ac");
@@ -451,10 +578,10 @@ mod tests {
     #[test]
     fn merge_commutativity() {
         let mut t1 = TextCrdt::new("alice");
-        t1.insert_str(0, "hello");
+        t1.insert_str(0, "hello").unwrap();
 
         let mut t2 = TextCrdt::new("bob");
-        t2.insert_str(0, "world");
+        t2.insert_str(0, "world").unwrap();
 
         let mut left = t1.clone();
         left.merge(&t2);
@@ -468,10 +595,10 @@ mod tests {
     #[test]
     fn merge_idempotency() {
         let mut t1 = TextCrdt::new("alice");
-        t1.insert_str(0, "hello");
+        t1.insert_str(0, "hello").unwrap();
 
         let mut t2 = TextCrdt::new("bob");
-        t2.insert_str(0, "world");
+        t2.insert_str(0, "world").unwrap();
 
         t1.merge(&t2);
         let after_first = t1.clone();
@@ -485,10 +612,10 @@ mod tests {
     fn concurrent_inserts_at_same_position() {
         // Both replicas start empty and insert at position 0.
         let mut t1 = TextCrdt::new("alice");
-        t1.insert(0, 'a');
+        t1.insert(0, 'a').unwrap();
 
         let mut t2 = TextCrdt::new("bob");
-        t2.insert(0, 'b');
+        t2.insert(0, 'b').unwrap();
 
         let mut left = t1.clone();
         left.merge(&t2);
@@ -509,14 +636,14 @@ mod tests {
     fn concurrent_inserts_at_same_position_in_existing_text() {
         // Both replicas share the same base text and insert at the same index.
         let mut t1 = TextCrdt::new("alice");
-        t1.insert_str(0, "ac");
+        t1.insert_str(0, "ac").unwrap();
 
         // Fork to a different actor so new inserts get unique IDs.
         let mut t2 = t1.fork("bob");
 
         // Both insert at position 1 (between 'a' and 'c').
-        t1.insert(1, 'X');
-        t2.insert(1, 'Y');
+        t1.insert(1, 'X').unwrap();
+        t2.insert(1, 'Y').unwrap();
 
         let mut left = t1.clone();
         left.merge(&t2);
@@ -535,14 +662,14 @@ mod tests {
     #[test]
     fn concurrent_insert_and_delete() {
         let mut t1 = TextCrdt::new("alice");
-        t1.insert_str(0, "abc");
+        t1.insert_str(0, "abc").unwrap();
 
         let mut t2 = t1.fork("bob");
 
         // alice deletes 'b'
-        t1.remove(1);
+        t1.remove(1).unwrap();
         // bob inserts 'X' at position 1
-        t2.insert(1, 'X');
+        t2.insert(1, 'X').unwrap();
 
         let mut left = t1.clone();
         left.merge(&t2);
@@ -563,15 +690,15 @@ mod tests {
     #[test]
     fn merge_after_local_edits_on_both_sides() {
         let mut t1 = TextCrdt::new("alice");
-        t1.insert_str(0, "hello");
+        t1.insert_str(0, "hello").unwrap();
 
         let mut t2 = t1.fork("bob");
 
         // alice appends " world"
-        t1.insert_str(5, " world");
+        t1.insert_str(5, " world").unwrap();
         // bob deletes "llo" and inserts "p"
-        t2.remove_range(2, 3);
-        t2.insert(2, 'p');
+        t2.remove_range(2, 3).unwrap();
+        t2.insert(2, 'p').unwrap();
 
         let mut left = t1.clone();
         left.merge(&t2);
@@ -585,7 +712,7 @@ mod tests {
     #[test]
     fn display_trait() {
         let mut t = TextCrdt::new("a");
-        t.insert_str(0, "hello");
+        t.insert_str(0, "hello").unwrap();
         assert_eq!(format!("{t}"), "hello");
     }
 
@@ -596,38 +723,43 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "out of bounds")]
-    fn insert_out_of_bounds_panics() {
+    fn insert_out_of_bounds_returns_error() {
         let mut t = TextCrdt::new("a");
-        t.insert(1, 'x'); // only index 0 is valid for empty text
+        let err = t.insert(1, 'x');
+        assert_eq!(err, Err(TextError::IndexOutOfBounds { index: 1, len: 0 }));
     }
 
     #[test]
-    #[should_panic(expected = "out of bounds")]
-    fn remove_out_of_bounds_panics() {
-        let mut t = TextCrdt::new("a");
-        t.remove(0);
+    fn remove_out_of_bounds_returns_error() {
+        let t = TextCrdt::new("a");
+        assert_eq!(t.len(), 0);
+        let mut t2 = TextCrdt::new("a");
+        let err = t2.remove(0);
+        assert_eq!(err, Err(TextError::IndexOutOfBounds { index: 0, len: 0 }));
     }
 
     #[test]
-    #[should_panic(expected = "out of bounds")]
-    fn remove_range_out_of_bounds_panics() {
+    fn remove_range_out_of_bounds_returns_error() {
         let mut t = TextCrdt::new("a");
-        t.insert_str(0, "abc");
-        t.remove_range(1, 5);
+        t.insert_str(0, "abc").unwrap();
+        let err = t.remove_range(1, 5);
+        assert_eq!(
+            err,
+            Err(TextError::RangeOutOfBounds { start: 1, end: 6, len: 3 })
+        );
     }
 
     #[test]
     fn triple_merge_convergence() {
         let mut t1 = TextCrdt::new("alice");
-        t1.insert_str(0, "base");
+        t1.insert_str(0, "base").unwrap();
 
         let mut t2 = t1.fork("bob");
         let mut t3 = t1.fork("carol");
 
-        t1.insert(4, '!');
-        t2.insert(0, '>');
-        t3.remove(2); // remove 's'
+        t1.insert(4, '!').unwrap();
+        t2.insert(0, '>').unwrap();
+        t3.remove(2).unwrap(); // remove 's'
 
         // Merge in different orders and verify convergence.
         let mut r1 = t1.clone();
@@ -644,5 +776,42 @@ mod tests {
 
         assert_eq!(r1.to_string(), r2.to_string());
         assert_eq!(r2.to_string(), r3.to_string());
+    }
+
+    #[test]
+    fn delta_apply_equivalent_to_merge() {
+        let mut t1 = TextCrdt::new("alice");
+        t1.insert_str(0, "hello").unwrap();
+
+        let mut t2 = TextCrdt::new("bob");
+        t2.insert_str(0, "world").unwrap();
+
+        let mut via_merge = t2.clone();
+        via_merge.merge(&t1);
+
+        let mut via_delta = t2.clone();
+        let d = t1.delta(&t2);
+        via_delta.apply_delta(&d);
+
+        assert_eq!(via_merge.to_string(), via_delta.to_string());
+    }
+
+    #[test]
+    fn delta_with_tombstones() {
+        let mut t1 = TextCrdt::new("alice");
+        t1.insert_str(0, "abc").unwrap();
+
+        let t2 = t1.fork("bob");
+        t1.remove(1).unwrap(); // delete 'b'
+
+        let mut via_merge = t2.clone();
+        via_merge.merge(&t1);
+
+        let mut via_delta = t2.clone();
+        let d = t1.delta(&t2);
+        via_delta.apply_delta(&d);
+
+        assert_eq!(via_merge.to_string(), via_delta.to_string());
+        assert_eq!(via_delta.to_string(), "ac");
     }
 }

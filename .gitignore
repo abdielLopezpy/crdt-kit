@@ -10,3 +10,4 @@ Cargo.lock
 *.iml
 nul
 /.claude
+docs/EVALUATION.md

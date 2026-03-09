@@ -129,6 +129,110 @@ fn bench_lww_register_merge(c: &mut Criterion) {
     });
 }
 
+fn bench_rga_insert(c: &mut Criterion) {
+    c.bench_function("Rga::insert_at x1000 sequential", |b| {
+        b.iter(|| {
+            let mut rga = Rga::new("bench");
+            for i in 0..1000u32 {
+                rga.insert_at(i as usize, i).unwrap();
+            }
+            black_box(rga.len())
+        })
+    });
+}
+
+fn bench_rga_remove(c: &mut Criterion) {
+    let mut rga = Rga::new("bench");
+    for i in 0..1000u32 {
+        rga.insert_at(i as usize, i).unwrap();
+    }
+
+    c.bench_function("Rga::remove x500", |b| {
+        b.iter(|| {
+            let mut r = rga.clone();
+            for _ in 0..500 {
+                r.remove(0);
+            }
+            black_box(r.len())
+        })
+    });
+}
+
+fn bench_rga_merge(c: &mut Criterion) {
+    let mut r1 = Rga::new("a");
+    let mut r2 = Rga::new("b");
+    for i in 0..500u32 {
+        r1.insert_at(i as usize, i).unwrap();
+        r2.insert_at(i as usize, i + 1000).unwrap();
+    }
+
+    c.bench_function("Rga::merge 500+500 elements", |b| {
+        b.iter(|| {
+            let mut merged = r1.clone();
+            merged.merge(&r2);
+            black_box(merged.len())
+        })
+    });
+}
+
+fn bench_text_insert(c: &mut Criterion) {
+    c.bench_function("TextCrdt::insert_str 1000 chars", |b| {
+        b.iter(|| {
+            let mut t = TextCrdt::new("bench");
+            t.insert_str(0, &"a".repeat(1000)).unwrap();
+            black_box(t.len())
+        })
+    });
+}
+
+fn bench_text_merge(c: &mut Criterion) {
+    let mut t1 = TextCrdt::new("alice");
+    t1.insert_str(0, &"a".repeat(500)).unwrap();
+
+    let mut t2 = TextCrdt::new("bob");
+    t2.insert_str(0, &"b".repeat(500)).unwrap();
+
+    c.bench_function("TextCrdt::merge 500+500 chars", |b| {
+        b.iter(|| {
+            let mut merged = t1.clone();
+            merged.merge(&t2);
+            black_box(merged.len())
+        })
+    });
+}
+
+fn bench_text_merge_overlapping(c: &mut Criterion) {
+    let mut t1 = TextCrdt::new("alice");
+    t1.insert_str(0, &"a".repeat(500)).unwrap();
+    let mut t2 = t1.fork("bob");
+    // bob adds 100 chars — most state is shared
+    t2.insert_str(500, &"b".repeat(100)).unwrap();
+
+    c.bench_function("TextCrdt::merge 500+100 overlapping", |b| {
+        b.iter(|| {
+            let mut merged = t1.clone();
+            merged.merge(&t2);
+            black_box(merged.len())
+        })
+    });
+}
+
+fn bench_delta_sync(c: &mut Criterion) {
+    let mut t1 = TextCrdt::new("alice");
+    t1.insert_str(0, &"a".repeat(500)).unwrap();
+    let mut t2 = t1.fork("bob");
+    t2.insert_str(500, &"b".repeat(100)).unwrap();
+
+    c.bench_function("TextCrdt::delta+apply 500+100", |b| {
+        b.iter(|| {
+            let delta = t2.delta(&t1);
+            let mut target = t1.clone();
+            target.apply_delta(&delta);
+            black_box(target.len())
+        })
+    });
+}
+
 criterion_group!(
     benches,
     bench_gcounter_increment,
@@ -138,5 +242,12 @@ criterion_group!(
     bench_orset_merge,
     bench_gset_merge,
     bench_lww_register_merge,
+    bench_rga_insert,
+    bench_rga_remove,
+    bench_rga_merge,
+    bench_text_insert,
+    bench_text_merge,
+    bench_text_merge_overlapping,
+    bench_delta_sync,
 );
 criterion_main!(benches);

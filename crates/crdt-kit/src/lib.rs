@@ -81,12 +81,12 @@ pub mod prelude;
 
 pub use crdt::{Crdt, DeltaCrdt};
 pub use gcounter::{GCounter, GCounterDelta};
-pub use gset::GSet;
-pub use lww_register::LWWRegister;
-pub use mv_register::MVRegister;
+pub use gset::{GSet, GSetDelta};
+pub use lww_register::{LWWRegister, LWWRegisterDelta};
+pub use mv_register::{MVRegister, MVRegisterDelta};
 pub use or_set::{ORSet, ORSetDelta};
 pub use pncounter::{PNCounter, PNCounterDelta};
-pub use rga::Rga;
-pub use text::TextCrdt;
-pub use twop_set::TwoPSet;
+pub use rga::{Rga, RgaDelta, RgaError, RgaNode};
+pub use text::{TextCrdt, TextDelta, TextError};
+pub use twop_set::{TwoPSet, TwoPSetDelta};
 pub use version::{CrdtType, VersionError, Versioned};

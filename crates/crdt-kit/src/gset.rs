@@ -1,6 +1,6 @@
 use alloc::collections::BTreeSet;
 
-use crate::Crdt;
+use crate::{Crdt, DeltaCrdt};
 
 /// A grow-only set (G-Set).
 ///
@@ -78,6 +78,30 @@ impl<T: Ord + Clone> Default for GSet<T> {
 impl<T: Ord + Clone> Crdt for GSet<T> {
     fn merge(&mut self, other: &Self) {
         for elem in &other.elements {
+            self.elements.insert(elem.clone());
+        }
+    }
+}
+
+/// Delta for [`GSet`]: elements present in self but not in other.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct GSetDelta<T: Ord + Clone> {
+    /// Elements to add.
+    pub elements: BTreeSet<T>,
+}
+
+impl<T: Ord + Clone> DeltaCrdt for GSet<T> {
+    type Delta = GSetDelta<T>;
+
+    fn delta(&self, other: &Self) -> GSetDelta<T> {
+        GSetDelta {
+            elements: self.elements.difference(&other.elements).cloned().collect(),
+        }
+    }
+
+    fn apply_delta(&mut self, delta: &GSetDelta<T>) {
+        for elem in &delta.elements {
             self.elements.insert(elem.clone());
         }
     }
@@ -174,6 +198,38 @@ mod tests {
         s1.merge(&s2);
 
         assert_eq!(s1, after_first);
+    }
+
+    #[test]
+    fn delta_apply_equivalent_to_merge() {
+        let mut s1 = GSet::new();
+        s1.insert(1);
+        s1.insert(2);
+        s1.insert(3);
+
+        let mut s2 = GSet::new();
+        s2.insert(2);
+        s2.insert(4);
+
+        let mut full = s2.clone();
+        full.merge(&s1);
+
+        let mut via_delta = s2.clone();
+        let d = s1.delta(&s2);
+        via_delta.apply_delta(&d);
+
+        assert_eq!(full, via_delta);
+    }
+
+    #[test]
+    fn delta_is_empty_when_equal() {
+        let mut s1 = GSet::new();
+        s1.insert(1);
+        s1.insert(2);
+
+        let s2 = s1.clone();
+        let d = s1.delta(&s2);
+        assert!(d.elements.is_empty());
     }
 
     #[test]

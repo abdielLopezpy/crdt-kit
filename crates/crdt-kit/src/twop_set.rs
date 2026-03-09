@@ -1,6 +1,6 @@
 use alloc::collections::BTreeSet;
 
-use crate::Crdt;
+use crate::{Crdt, DeltaCrdt};
 
 /// A two-phase set (2P-Set).
 ///
@@ -109,6 +109,36 @@ impl<T: Ord + Clone> IntoIterator for TwoPSet<T> {
     }
 }
 
+/// Delta for [`TwoPSet`]: new additions and new removals.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct TwoPSetDelta<T: Ord + Clone> {
+    /// Elements added that the other replica doesn't have.
+    pub added: BTreeSet<T>,
+    /// Elements removed that the other replica doesn't know about.
+    pub removed: BTreeSet<T>,
+}
+
+impl<T: Ord + Clone> DeltaCrdt for TwoPSet<T> {
+    type Delta = TwoPSetDelta<T>;
+
+    fn delta(&self, other: &Self) -> TwoPSetDelta<T> {
+        TwoPSetDelta {
+            added: self.added.difference(&other.added).cloned().collect(),
+            removed: self.removed.difference(&other.removed).cloned().collect(),
+        }
+    }
+
+    fn apply_delta(&mut self, delta: &TwoPSetDelta<T>) {
+        for elem in &delta.added {
+            self.added.insert(elem.clone());
+        }
+        for elem in &delta.removed {
+            self.removed.insert(elem.clone());
+        }
+    }
+}
+
 impl<T: Ord + Clone> Crdt for TwoPSet<T> {
     fn merge(&mut self, other: &Self) {
         for elem in &other.added {
@@ -202,6 +232,43 @@ mod tests {
         s1.merge(&s2);
 
         assert_eq!(s1, after_first);
+    }
+
+    #[test]
+    fn delta_apply_equivalent_to_merge() {
+        let mut s1 = TwoPSet::new();
+        s1.insert("a");
+        s1.insert("b");
+        s1.remove(&"a");
+
+        let mut s2 = TwoPSet::new();
+        s2.insert("b");
+        s2.insert("c");
+
+        let mut full = s2.clone();
+        full.merge(&s1);
+
+        let mut via_delta = s2.clone();
+        let d = s1.delta(&s2);
+        via_delta.apply_delta(&d);
+
+        assert_eq!(full, via_delta);
+    }
+
+    #[test]
+    fn delta_carries_removals() {
+        let mut s1 = TwoPSet::new();
+        s1.insert("x");
+        s1.remove(&"x");
+
+        let mut s2 = TwoPSet::new();
+        s2.insert("x");
+
+        let d = s1.delta(&s2);
+        assert!(!d.removed.is_empty());
+
+        s2.apply_delta(&d);
+        assert!(!s2.contains(&"x"));
     }
 
     #[test]

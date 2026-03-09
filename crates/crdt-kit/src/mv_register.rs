@@ -2,7 +2,7 @@ use alloc::collections::BTreeMap;
 use alloc::string::String;
 use alloc::vec::Vec;
 
-use crate::Crdt;
+use crate::{Crdt, DeltaCrdt};
 
 /// A multi-value register (MV-Register).
 ///
@@ -90,6 +90,69 @@ fn dominates(a: &BTreeMap<String, u64>, b: &BTreeMap<String, u64>) -> bool {
         }
     }
     true
+}
+
+/// Delta for [`MVRegister`]: the full state needed to bring a peer up to date.
+///
+/// Because MVRegister semantics depend on version vector dominance, the delta
+/// contains the entries and version from the source that the receiver is missing.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct MVRegisterDelta<T: Clone + Ord> {
+    /// Entries that the other replica doesn't have.
+    pub entries: Vec<(T, BTreeMap<String, u64>)>,
+    /// Version vector of the source.
+    pub version: BTreeMap<String, u64>,
+}
+
+impl<T: Clone + Ord> DeltaCrdt for MVRegister<T> {
+    type Delta = MVRegisterDelta<T>;
+
+    fn delta(&self, other: &Self) -> MVRegisterDelta<T> {
+        // Include entries from self that are not dominated by other's version
+        let entries: Vec<_> = self
+            .entries
+            .iter()
+            .filter(|entry| !dominates(&other.version, &entry.1))
+            .cloned()
+            .collect();
+
+        MVRegisterDelta {
+            entries,
+            version: self.version.clone(),
+        }
+    }
+
+    fn apply_delta(&mut self, delta: &MVRegisterDelta<T>) {
+        let self_version = self.version.clone();
+        let mut new_entries = Vec::new();
+
+        // Keep self entries not dominated by delta's version
+        for entry in &self.entries {
+            if !dominates(&delta.version, &entry.1)
+                || delta.entries.iter().any(|e| e.1 == entry.1)
+            {
+                new_entries.push(entry.clone());
+            }
+        }
+
+        // Add delta entries not dominated by self's original version
+        for entry in &delta.entries {
+            if !dominates(&self_version, &entry.1)
+                && !new_entries.iter().any(|e| e.1 == entry.1)
+            {
+                new_entries.push(entry.clone());
+            }
+        }
+
+        // Merge version vectors
+        for (actor, &count) in &delta.version {
+            let v = self.version.entry(actor.clone()).or_insert(0);
+            *v = (*v).max(count);
+        }
+
+        self.entries = new_entries;
+    }
 }
 
 impl<T: Clone + Ord> Crdt for MVRegister<T> {
@@ -216,6 +279,44 @@ mod tests {
         r1.merge(&r2);
 
         assert_eq!(r1, after_first);
+    }
+
+    #[test]
+    fn delta_apply_equivalent_to_merge() {
+        let mut r1 = MVRegister::new("a");
+        r1.set("alice");
+
+        let mut r2 = MVRegister::new("b");
+        r2.set("bob");
+
+        let mut full = r2.clone();
+        full.merge(&r1);
+
+        let mut via_delta = r2.clone();
+        let d = r1.delta(&r2);
+        via_delta.apply_delta(&d);
+
+        let mut fv = full.values();
+        fv.sort();
+        let mut dv = via_delta.values();
+        dv.sort();
+        assert_eq!(fv, dv);
+    }
+
+    #[test]
+    fn delta_from_causal_successor_supersedes() {
+        let mut r1 = MVRegister::new("a");
+        r1.set("first");
+
+        let mut r2 = r1.clone();
+        r2.set("second");
+
+        let d = r2.delta(&r1);
+        let mut via_delta = r1.clone();
+        via_delta.apply_delta(&d);
+
+        assert_eq!(via_delta.values(), vec![&"second"]);
+        assert!(!via_delta.is_conflicted());
     }
 
     #[test]

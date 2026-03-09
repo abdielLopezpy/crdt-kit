@@ -450,7 +450,7 @@ assert_eq!(gateway.value(), 231);
 | Trait | Description |
 |---|---|
 | [`Crdt`](https://docs.rs/crdt-kit/latest/crdt_kit/trait.Crdt.html) | Core merge semantics (commutative, associative, idempotent) |
-| [`DeltaCrdt`](https://docs.rs/crdt-kit/latest/crdt_kit/trait.DeltaCrdt.html) | Efficient delta sync — send only what changed |
+| [`DeltaCrdt`](https://docs.rs/crdt-kit/latest/crdt_kit/trait.DeltaCrdt.html) | Efficient delta sync — send only what changed (all 9 types) |
 
 ---
 
@@ -476,21 +476,37 @@ cargo run -p crdt-example-tasks                                     # Task manag
 
 ## Performance
 
-Measured with [Criterion](https://github.com/bheisler/criterion.rs) on optimized builds:
+Measured with [Criterion](https://github.com/bheisler/criterion.rs) on optimized builds.
+
+### Core Operations
 
 | Operation | Time | Throughput |
 |---|---|---|
-| GCounter increment x1000 | **53 µs** | ~19M ops/sec |
-| GCounter merge 10 replicas | **1.1 µs** | ~9M merges/sec |
-| GCounter merge 100 replicas | **17.8 µs** | — |
-| PNCounter inc+dec x1000 | **60 µs** | ~16M ops/sec |
-| ORSet insert x1000 | **187 µs** | ~5M ops/sec |
-| ORSet merge 500+500 elements | **191 µs** | — |
-| GSet merge 1000+1000 elements | **102 µs** | — |
-| LWWRegister merge 100 replicas | **11.5 µs** | ~8M merges/sec |
+| GCounter increment x1000 | **125 µs** | ~8M ops/sec |
+| GCounter merge 10 replicas | **2.2 µs** | ~4.5M merges/sec |
+| GCounter merge 100 replicas | **36 µs** | — |
+| PNCounter inc+dec x1000 | **112 µs** | ~8.9M ops/sec |
+| ORSet insert x1000 | **350 µs** | ~2.8M ops/sec |
+| ORSet merge 500+500 elements | **308 µs** | — |
+| GSet merge 1000+1000 elements | **83 µs** | — |
+| LWWRegister merge 100 replicas | **12.6 µs** | ~7.9M merges/sec |
+| **Rga insert x1000** | **267 µs** | ~3.7M ops/sec |
+| Rga remove x500 | **217 µs** | — |
+| **TextCrdt insert 1000 chars** | **246 µs** | ~4M ops/sec |
+| TextCrdt delta+apply 500+100 | **600 µs** | — |
+
+### vs Automerge & Yrs (Comparative Benchmarks)
+
+| Benchmark | crdt-kit | Yrs 0.25 | Automerge 0.7 | Speedup |
+|---|---|---|---|---|
+| Counter increment x1000 | **33 µs** | — | 23 ms | **700x** vs Automerge |
+| Text insert 1000 chars | **83 µs** | 3.1 ms | 16.5 ms | **37x** vs Yrs, **199x** vs Automerge |
+| List insert 1000 elements | **265 µs** | 16.5 ms | 34.4 ms | **62x** vs Yrs, **130x** vs Automerge |
+| Set insert 1000 | **203 µs** | — | 27.6 ms | **136x** vs Automerge |
 
 ```bash
-cargo bench  # Run benchmarks yourself
+cargo bench --bench crdt_benchmarks   # Core benchmarks
+cargo bench --bench comparative       # vs Automerge & Yrs
 ```
 
 ---
@@ -505,7 +521,7 @@ All CRDTs satisfy **Strong Eventual Consistency (SEC)**:
 | **Associativity** | `merge(a, merge(b, c)) == merge(merge(a, b), c)` | Group syncs however you want |
 | **Idempotency** | `merge(a, a) == a` | Safe to retry — no duplicates |
 
-Verified by **256 tests** across the workspace.
+Verified by **193 unit, convergence, and property-based tests** in `crdt-kit` alone (plus additional tests across the workspace). Property-based tests (proptest) verify commutativity, associativity, idempotency, and delta equivalence for all 9 CRDT types with randomized inputs.
 
 ---
 
@@ -518,7 +534,11 @@ Verified by **256 tests** across the workspace.
 - [x] Text CRDT (collaborative text editing)
 - [x] `no_std` support (embedded / bare metal)
 - [x] `serde` serialization support
-- [x] Delta-state optimization
+- [x] Delta-state optimization (9/9 types with `DeltaCrdt` trait)
+- [x] Property-based testing (proptest) — 32 tests covering all CRDT guarantees
+- [x] HLC (Hybrid Logical Clock) integration for LWWRegister
+- [x] Tombstone compaction for ORSet (`compact()`)
+- [x] Error handling for RGA/TextCrdt operations (`RgaError`, `TextError`)
 - [x] WASM bindings
 - [x] Persistent storage (SQLite + redb)
 - [x] High-level CrdtDb API with version envelopes
@@ -530,7 +550,7 @@ Verified by **256 tests** across the workspace.
 - [x] Development runtime (`crdt dev`) with live logs, Dev UI dashboard, and auto-codegen
 - [ ] Network transport layer (TCP, WebSocket, QUIC)
 - [ ] Sync protocol (delta-based replication)
-- [ ] Benchmarks against Automerge / Yrs
+- [x] Benchmarks against Automerge / Yrs (37–700x faster)
 
 ---
 
