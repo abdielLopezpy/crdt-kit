@@ -79,7 +79,8 @@ mod pncounter;
 pub mod rga;
 mod text;
 mod twop_set;
-mod version;
+/// Versioned serialization and envelope format.
+pub mod version;
 #[cfg(feature = "wasm")]
 mod wasm;
 
@@ -98,4 +99,7 @@ pub use pncounter::{PNCounter, PNCounterDelta};
 pub use rga::{Rga, RgaDelta, RgaError, RgaNode};
 pub use text::{TextCrdt, TextDelta, TextError};
 pub use twop_set::{TwoPSet, TwoPSetDelta};
-pub use version::{CrdtType, VersionError, Versioned};
+pub use version::{
+    CrdtType, EnvelopeError, VersionError, Versioned, VersionedEnvelope, ENVELOPE_HEADER_SIZE,
+    MAGIC_BYTE,
+};

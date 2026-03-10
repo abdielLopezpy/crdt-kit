@@ -34,3 +34,4 @@ pub use crate::TextError;
 pub use crate::TwoPSet;
 pub use crate::TwoPSetDelta;
 pub use crate::Versioned;
+pub use crate::VersionedEnvelope;
