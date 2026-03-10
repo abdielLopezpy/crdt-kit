@@ -68,6 +68,7 @@ extern crate alloc;
 
 mod aw_map;
 mod crdt;
+pub(crate) mod rope;
 mod gcounter;
 mod gset;
 mod lww_map;

@@ -248,6 +248,276 @@ impl WasmORSet {
     }
 }
 
+// ── TwoPSet ─────────────────────────────────────────────────────────
+
+/// A two-phase set of strings for use from JavaScript.
+/// Elements can be added and permanently removed.
+#[wasm_bindgen(js_name = TwoPSet)]
+pub struct WasmTwoPSet {
+    inner: crate::TwoPSet<String>,
+}
+
+impl Default for WasmTwoPSet {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[wasm_bindgen(js_class = TwoPSet)]
+impl WasmTwoPSet {
+    /// Create a new empty Two-Phase Set.
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> Self {
+        Self {
+            inner: crate::TwoPSet::new(),
+        }
+    }
+
+    /// Insert an element into the set.
+    pub fn insert(&mut self, value: &str) -> bool {
+        self.inner.insert(value.to_string())
+    }
+
+    /// Remove an element permanently.
+    pub fn remove(&mut self, value: &str) -> bool {
+        self.inner.remove(&value.to_string())
+    }
+
+    /// Check if the set contains an element.
+    pub fn contains(&self, value: &str) -> bool {
+        self.inner.contains(&value.to_string())
+    }
+
+    /// Get the number of elements.
+    pub fn len(&self) -> usize {
+        self.inner.len()
+    }
+
+    /// Check if the set is empty.
+    #[wasm_bindgen(js_name = isEmpty)]
+    pub fn is_empty(&self) -> bool {
+        self.inner.is_empty()
+    }
+
+    /// Merge another Two-Phase Set's state into this one.
+    pub fn merge(&mut self, other: &WasmTwoPSet) {
+        self.inner.merge(&other.inner);
+    }
+}
+
+// ── MVRegister ──────────────────────────────────────────────────────
+
+/// A multi-value register for string values, for use from JavaScript.
+/// Preserves all concurrent writes — use `values()` to see conflicts.
+#[wasm_bindgen(js_name = MVRegister)]
+pub struct WasmMVRegister {
+    inner: crate::MVRegister<String>,
+}
+
+#[wasm_bindgen(js_class = MVRegister)]
+impl WasmMVRegister {
+    /// Create a new MV-Register for the given node.
+    #[wasm_bindgen(constructor)]
+    pub fn new(actor: u64) -> Self {
+        Self {
+            inner: crate::MVRegister::new(actor),
+        }
+    }
+
+    /// Set the register's value.
+    pub fn set(&mut self, value: &str) {
+        self.inner.set(value.to_string());
+    }
+
+    /// Get all current values as a JavaScript array.
+    /// Multiple values indicate a conflict from concurrent writes.
+    pub fn values(&self) -> Box<[JsValue]> {
+        self.inner
+            .values()
+            .into_iter()
+            .map(|s| JsValue::from_str(s))
+            .collect::<Vec<_>>()
+            .into_boxed_slice()
+    }
+
+    /// Check if there are conflicting concurrent values.
+    #[wasm_bindgen(js_name = isConflicted)]
+    pub fn is_conflicted(&self) -> bool {
+        self.inner.is_conflicted()
+    }
+
+    /// Merge another MV-Register's state into this one.
+    pub fn merge(&mut self, other: &WasmMVRegister) {
+        self.inner.merge(&other.inner);
+    }
+}
+
+// ── LWWMap ──────────────────────────────────────────────────────────
+
+/// A last-writer-wins map with string keys and values, for use from JavaScript.
+#[wasm_bindgen(js_name = LWWMap)]
+pub struct WasmLWWMap {
+    inner: crate::LWWMap<String, String>,
+    clock: crate::clock::HybridClock,
+}
+
+#[wasm_bindgen(js_class = LWWMap)]
+impl WasmLWWMap {
+    /// Create a new empty LWW-Map.
+    #[wasm_bindgen(constructor)]
+    pub fn new(node_id: u64) -> Self {
+        Self {
+            inner: crate::LWWMap::new(),
+            clock: crate::clock::HybridClock::new(node_id),
+        }
+    }
+
+    /// Insert or update a key-value pair.
+    pub fn insert(&mut self, key: &str, value: &str) {
+        let ts = self.clock.now();
+        self.inner.insert(key.to_string(), value.to_string(), ts);
+    }
+
+    /// Remove a key.
+    pub fn remove(&mut self, key: &str) -> bool {
+        let ts = self.clock.now();
+        self.inner.remove(&key.to_string(), ts)
+    }
+
+    /// Get the value for a key.
+    pub fn get(&self, key: &str) -> Option<String> {
+        self.inner.get(&key.to_string()).cloned()
+    }
+
+    /// Get the number of entries.
+    pub fn len(&self) -> usize {
+        self.inner.len()
+    }
+
+    /// Check if the map is empty.
+    #[wasm_bindgen(js_name = isEmpty)]
+    pub fn is_empty(&self) -> bool {
+        self.inner.is_empty()
+    }
+
+    /// Merge another LWW-Map's state into this one.
+    pub fn merge(&mut self, other: &WasmLWWMap) {
+        self.inner.merge(&other.inner);
+    }
+}
+
+// ── AWMap ───────────────────────────────────────────────────────────
+
+/// An add-wins map with string keys and values, for use from JavaScript.
+/// Concurrent add beats remove.
+#[wasm_bindgen(js_name = AWMap)]
+pub struct WasmAWMap {
+    inner: crate::AWMap<String, String>,
+}
+
+#[wasm_bindgen(js_class = AWMap)]
+impl WasmAWMap {
+    /// Create a new empty AW-Map for the given node.
+    #[wasm_bindgen(constructor)]
+    pub fn new(actor: u64) -> Self {
+        Self {
+            inner: crate::AWMap::new(actor),
+        }
+    }
+
+    /// Insert or update a key-value pair.
+    pub fn insert(&mut self, key: &str, value: &str) {
+        self.inner.insert(key.to_string(), value.to_string());
+    }
+
+    /// Remove a key.
+    pub fn remove(&mut self, key: &str) -> bool {
+        self.inner.remove(&key.to_string())
+    }
+
+    /// Get the value for a key.
+    pub fn get(&self, key: &str) -> Option<String> {
+        self.inner.get(&key.to_string()).cloned()
+    }
+
+    /// Get the number of entries.
+    pub fn len(&self) -> usize {
+        self.inner.len()
+    }
+
+    /// Check if the map is empty.
+    #[wasm_bindgen(js_name = isEmpty)]
+    pub fn is_empty(&self) -> bool {
+        self.inner.is_empty()
+    }
+
+    /// Merge another AW-Map's state into this one.
+    pub fn merge(&mut self, other: &WasmAWMap) {
+        self.inner.merge(&other.inner);
+    }
+}
+
+// ── Rga ─────────────────────────────────────────────────────────────
+
+/// A Replicated Growable Array of strings for use from JavaScript.
+#[wasm_bindgen(js_name = Rga)]
+pub struct WasmRga {
+    inner: crate::Rga<String>,
+}
+
+#[wasm_bindgen(js_class = Rga)]
+impl WasmRga {
+    /// Create a new empty RGA for the given node.
+    #[wasm_bindgen(constructor)]
+    pub fn new(actor: u64) -> Self {
+        Self {
+            inner: crate::Rga::new(actor),
+        }
+    }
+
+    /// Insert an element at the given visible index.
+    #[wasm_bindgen(js_name = insertAt)]
+    pub fn insert_at(&mut self, index: usize, value: &str) -> bool {
+        self.inner.insert_at(index, value.to_string()).is_ok()
+    }
+
+    /// Remove the element at the given visible index.
+    pub fn remove(&mut self, index: usize) -> Option<String> {
+        self.inner.remove(index).ok()
+    }
+
+    /// Get the element at the given visible index.
+    pub fn get(&self, index: usize) -> Option<String> {
+        self.inner.get(index).cloned()
+    }
+
+    /// Get the number of visible elements.
+    pub fn len(&self) -> usize {
+        self.inner.len()
+    }
+
+    /// Check if the list is empty.
+    #[wasm_bindgen(js_name = isEmpty)]
+    pub fn is_empty(&self) -> bool {
+        self.inner.is_empty()
+    }
+
+    /// Get all visible elements as a JavaScript array.
+    #[wasm_bindgen(js_name = toArray)]
+    pub fn to_array(&self) -> Box<[JsValue]> {
+        self.inner
+            .iter()
+            .map(|s| JsValue::from_str(s))
+            .collect::<Vec<_>>()
+            .into_boxed_slice()
+    }
+
+    /// Merge another RGA's state into this one.
+    pub fn merge(&mut self, other: &WasmRga) {
+        self.inner.merge(&other.inner);
+    }
+}
+
 // ── TextCrdt ────────────────────────────────────────────────────────
 
 /// A collaborative text CRDT for use from JavaScript.

@@ -2,6 +2,7 @@ use alloc::collections::{BTreeMap, BTreeSet};
 use alloc::vec::Vec;
 use core::fmt;
 
+use crate::rope::ChunkedVec;
 use crate::{Crdt, DeltaCrdt, NodeId};
 
 /// Error type for RGA operations.
@@ -74,8 +75,8 @@ pub struct RgaNode<T: Clone + Ord> {
 pub struct Rga<T: Clone + Ord> {
     actor: NodeId,
     counter: u64,
-    /// Flat ordered sequence of elements (including tombstones).
-    elements: Vec<RgaNode<T>>,
+    /// Ordered sequence of elements (including tombstones), backed by a chunked rope.
+    elements: ChunkedVec<RgaNode<T>>,
     /// Version vector: max counter observed per actor.
     version: BTreeMap<NodeId, u64>,
     /// Cached count of visible (non-tombstoned) elements.
@@ -88,7 +89,7 @@ impl<T: Clone + Ord> Rga<T> {
         Self {
             actor,
             counter: 0,
-            elements: Vec::new(),
+            elements: ChunkedVec::new(),
             version: BTreeMap::new(),
             visible_len: 0,
         }
@@ -348,7 +349,7 @@ impl<T: Clone + Ord> Crdt for Rga<T> {
             .map(|(i, e)| (e.id, i))
             .collect();
 
-        for other_elem in &other.elements {
+        for other_elem in other.elements.iter() {
             if other_elem.deleted {
                 if let Some(&raw) = id_index.get(&other_elem.id) {
                     if !self.elements[raw].deleted {

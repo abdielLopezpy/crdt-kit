@@ -291,7 +291,7 @@ For `no_std`, disable defaults: `default-features = false`
 - [x] `NodeId` (`u64`) — zero heap allocations
 - [x] Tombstone compaction for ORSet
 - [x] Error handling for RGA/TextCrdt (`RgaError`, `TextError`)
-- [x] WASM bindings (GCounter, PNCounter, LWWRegister, GSet, ORSet, TextCrdt)
+- [x] WASM bindings (all 11 types: GCounter, PNCounter, LWWRegister, MVRegister, GSet, TwoPSet, ORSet, LWWMap, AWMap, Rga, TextCrdt)
 - [x] Fuzz testing (6 targets via cargo-fuzz)
 - [x] IoT Sensor Dashboard example (all 11 CRDTs)
 - [x] `Versioned` trait with `CrdtType` enum for all 11 types
@@ -300,8 +300,8 @@ For `no_std`, disable defaults: `default-features = false`
 - [x] Memory footprint benchmarks for embedded use case
 - [ ] Network transport layer (TCP, WebSocket, QUIC)
 - [ ] Sync protocol (delta-based replication)
+- [x] Rope-backed RGA (ChunkedVec) for large sequences (>10K elements)
 - [ ] AWMap tombstone compaction
-- [ ] Rope-backed RGA for large documents (>10K elements)
 
 ---
 
