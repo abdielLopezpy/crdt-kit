@@ -14,7 +14,7 @@
 
 <br>
 
-[**Website**](https://crdt-kit.github.io/crdt-kit/) &bull; [**Documentation**](https://docs.rs/crdt-kit) &bull; [**Crate**](https://crates.io/crates/crdt-kit) &bull; [**Examples**](./crates/crdt-store/examples) &bull; [**Contributing**](CONTRIBUTING.md)
+[**Website**](https://crdt-kit.github.io/crdt-kit/) &bull; [**Documentation**](https://docs.rs/crdt-kit) &bull; [**Crate**](https://crates.io/crates/crdt-kit) &bull; [**Examples**](./crates/crdt-kit/examples) &bull; [**Contributing**](CONTRIBUTING.md)
 
 <br>
 
@@ -24,7 +24,13 @@
 
 Traditional sync solutions break when devices go offline. CRDTs solve this at the data structure level — every replica can be updated independently, and **merges always converge to the same result**, guaranteed by math, not by servers.
 
-`crdt-kit` is built specifically for **resource-constrained, latency-sensitive environments** where existing solutions (Automerge, Yjs) add too much overhead:
+`crdt-kit` is built for **resource-constrained, latency-sensitive environments** where existing solutions (Automerge, Yjs) add too much overhead:
+
+- **Zero heap allocations** on node IDs (`u64` instead of `String`)
+- **`no_std` + `alloc`** — runs on bare metal, ESP32, Raspberry Pi
+- **11 CRDT types** with delta-state sync, Hybrid Logical Clocks, and versioned serialization
+- **Single dependency-free crate** (core) — optional `serde` and `wasm` features
+- **Battle-tested** — 137 unit tests, 14 integration tests, property-based testing (proptest), 6 fuzz targets
 
 ```
 +-----------+     +-----------+     +-----------+
@@ -45,48 +51,24 @@ Traditional sync solutions break when devices go offline. CRDTs solve this at th
           Same state!       Same state!    <-- Strong Eventual Consistency
 ```
 
-### Key Advantages
-
-| | `crdt-kit` | Automerge | Yjs |
-|---|---|---|---|
-| **Zero dependencies** (core) | Yes | No (30+) | No (N/A — JS) |
-| **`no_std` / embedded** | Yes | No | No |
-| **WASM-ready** | Yes | Partial | Native JS |
-| **Persistent storage** | SQLite, redb, memory | Custom | N/A |
-| **Schema migrations** | Automatic (lazy) | Manual | N/A |
-| **Delta sync** | Yes | Yes | Yes |
-| **Serde integration** | Yes | Custom | N/A |
-| **Pure Rust** | Yes | Yes | No (JS) |
-
-### Built For
-
-| Environment | Why it matters |
-|---|---|
-| **IoT / Embedded** | `no_std` support — runs on bare metal, Raspberry Pi, ESP32 |
-| **Mobile apps** | Offline-first with automatic conflict resolution on reconnect |
-| **Edge computing** | Delta sync minimizes bandwidth between edge nodes |
-| **P2P networks** | No central server needed — every peer is equal |
-| **Real-time collaboration** | Concurrent edits merge without coordination |
-| **WASM / Browser** | First-class WebAssembly bindings for web apps |
-
 ---
 
 ## Quick Start
 
 ```toml
 [dependencies]
-crdt-kit = "0.4.0-beta.1"
+crdt-kit = "0.5"
 ```
 
 ```rust
 use crdt_kit::prelude::*;
 
-// Two devices, working offline
-let mut phone = GCounter::new("phone");
+// Two devices, working offline — NodeId is u64 (zero heap allocs)
+let mut phone = GCounter::new(1);
 phone.increment();
 phone.increment();
 
-let mut laptop = GCounter::new("laptop");
+let mut laptop = GCounter::new(2);
 laptop.increment();
 
 // When they reconnect — merge. Always converges.
@@ -94,322 +76,34 @@ phone.merge(&laptop);
 assert_eq!(phone.value(), 3);
 ```
 
-### With Persistence
-
-```toml
-[dependencies]
-crdt-kit = { version = "0.4.0-beta.1", features = ["serde"] }
-crdt-store = { version = "0.1", features = ["sqlite"] }
-```
-
-```rust
-use crdt_store::{CrdtDb, CrdtVersioned, SqliteStore};
-use serde::{Serialize, Deserialize};
-
-#[derive(Serialize, Deserialize)]
-struct SensorReading { temperature: f32, humidity: f32 }
-
-impl CrdtVersioned for SensorReading {
-    const SCHEMA_VERSION: u8 = 1;
-}
-
-let store = SqliteStore::open("sensors.db").unwrap();
-let mut db = CrdtDb::with_store(store);
-
-// Save — automatically wrapped in a version envelope
-db.save("sensor-42", &SensorReading { temperature: 22.5, humidity: 65.0 }).unwrap();
-
-// Load — automatically migrated if the schema changed
-let reading: Option<SensorReading> = db.load("sensor-42").unwrap();
-```
-
----
-
-## Workspace Architecture
-
-`crdt-kit` is a multi-crate workspace. Use only what you need:
-
-```
-crdt-kit/
-├── crates/
-│   ├── crdt-kit/              9 CRDTs + HLC + traits (the core library)
-│   ├── crdt-store/            Persistence: SQLite, redb, memory + CrdtDb API
-│   ├── crdt-migrate/          Version envelopes + migration engine
-│   ├── crdt-migrate-macros/   #[crdt_schema] + #[migration] proc macros
-│   ├── crdt-codegen/          Code generation from TOML schemas
-│   ├── crdt-cli/              CLI: new/dev/status/inspect/compact/export/generate/dev-ui
-│   ├── crdt-dev-ui/           Embedded web panel for database inspection
-│   └── crdt-example-tasks/    Full example: codegen + migrations + events
-```
-
-| Crate | Description | Feature flags |
-|---|---|---|
-| **crdt-kit** | 9 CRDT types, HLC, Crdt/DeltaCrdt traits | `std`, `serde`, `wasm` |
-| **crdt-store** | Unified storage abstraction + high-level CrdtDb | `sqlite`, `redb` |
-| **crdt-migrate** | Transparent schema migrations (lazy, on-read) | `macros` |
-| **crdt-codegen** | Generate structs, migrations, and helpers from TOML | — |
-| **crdt-cli** | Developer CLI tool (`crdt` binary) | — |
-| **crdt-dev-ui** | Web inspection panel (Axum, dark theme) | — |
-
----
-
-## Persistence & Storage
-
-Three backends, one trait surface:
-
-| Backend | Feature | Use case | Dependencies |
-|---|---|---|---|
-| `MemoryStore` | *(always)* | Testing, prototyping | None |
-| `SqliteStore` | `sqlite` | Edge Linux, mobile, desktop | rusqlite (bundled) |
-| `RedbStore` | `redb` | Pure-Rust edge (no C deps) | redb |
-
-All backends implement `StateStore` + `EventStore` with event sourcing, snapshots, and compaction:
-
-```rust
-use crdt_store::{EventStore, MemoryStore, StateStore};
-
-let mut store = MemoryStore::new();
-
-// State persistence
-store.put("sensors", "s1", b"data").unwrap();
-
-// Event sourcing
-let seq = store.append_event("sensors", "s1", b"SetTemp(23.1)", 1000, "node-a").unwrap();
-
-// Snapshots + compaction
-store.save_snapshot("sensors", "s1", b"state", seq, 1).unwrap();
-store.truncate_events_before("sensors", "s1", seq).unwrap();
-```
-
----
-
-## Schema Migrations
-
-When your data evolves between app versions, `crdt-migrate` handles it transparently:
-
-```rust
-use crdt_migrate::{crdt_schema, migration};
-
-#[crdt_schema(version = 1, table = "sensors")]
-#[derive(Serialize, Deserialize)]
-struct SensorV1 { device_id: String, temperature: f32 }
-
-#[crdt_schema(version = 2, table = "sensors")]
-#[derive(Serialize, Deserialize)]
-struct SensorV2 { device_id: String, temperature: f32, humidity: Option<f32> }
-
-#[migration(from = 1, to = 2)]
-fn add_humidity(old: SensorV1) -> SensorV2 {
-    SensorV2 { device_id: old.device_id, temperature: old.temperature, humidity: None }
-}
-```
-
-- **Lazy**: Data migrates on read, not on startup
-- **Deterministic**: Two devices migrating the same data produce identical results
-- **Linear chain**: v1 → v2 → v3 → current, never skipping steps
-- **Write-back**: Migrated data is re-persisted automatically
-
----
-
-## Code Generation
-
-Define your entities in a `crdt-schema.toml` file and generate all the Rust boilerplate:
-
-```toml
-[config]
-output = "src/generated"
-
-# Entity with CRDT-wrapped fields (conflict-free replicated)
-[[entity]]
-name = "Project"
-table = "projects"
-
-[[entity.versions]]
-version = 1
-fields = [
-    { name = "name", type = "String", crdt = "LWWRegister" },
-    { name = "members", type = "String", crdt = "ORSet" },
-]
-
-# Entity with plain fields, versioned schema, and a relation
-[[entity]]
-name = "Task"
-table = "tasks"
-
-[[entity.versions]]
-version = 1
-fields = [
-    { name = "title", type = "String" },
-    { name = "done", type = "bool" },
-]
-
-[[entity.versions]]
-version = 2
-fields = [
-    { name = "title", type = "String" },
-    { name = "done", type = "bool" },
-    { name = "priority", type = "Option<u8>", default = "None" },
-    { name = "tags", type = "Vec<String>", default = "Vec::new()" },
-    { name = "project_id", type = "String", default = "String::new()", relation = "Project" },
-]
-```
-
-```bash
-$ crdt generate --schema crdt-schema.toml
-  Generated: src/generated/project.rs
-  Generated: src/generated/task.rs
-  Generated: src/generated/task_migrations.rs
-  Generated: src/generated/helpers.rs
-  Generated: src/generated/mod.rs
-
-Generated 5 files in src/generated/
-```
-
-**Field options:**
-
-| Option | Example | Effect |
-| --- | --- | --- |
-| `type` | `"String"`, `"Vec<u8>"` | Rust type for the field |
-| `default` | `"None"`, `"Vec::new()"` | Default value for migrations |
-| `crdt` | `"LWWRegister"`, `"ORSet"`, `"GCounter"` | Wraps the type with a CRDT (e.g., `LWWRegister<String>`) |
-| `relation` | `"Project"` | Documents a reference to another entity |
-
-Supported CRDT types: `GCounter`, `PNCounter`, `LWWRegister`, `MVRegister`, `GSet`, `TwoPSet`, `ORSet`
-
-**What gets generated:**
-
-- `project.rs` / `task.rs` — Versioned structs with `#[crdt_schema]`, CRDT-wrapped field types, and `type Project = ProjectV1`
-- `task_migrations.rs` — Migration functions with `#[migration]` (auto-generated for field additions, CRDT fields get auto-defaults)
-- `helpers.rs` — `create_db()` and `create_memory_db()` with all migrations pre-registered
-- `mod.rs` — Module declarations and re-exports
-
-All files are marked `AUTO-GENERATED by crdt-codegen -- DO NOT EDIT`.
-
-See [`crdt-example-tasks`](./crates/crdt-example-tasks) for a complete working example.
-
----
-
-## Developer Tools
-
-### CLI
-
-```bash
-# Project scaffolding
-$ crdt new                    # Interactive project creation (platform, template, entity)
-$ crdt new my-app             # Quick create with name
-
-# Development runtime
-$ crdt dev                    # Build & run app + Dev UI dashboard
-$ crdt dev --watch            # Auto-restart on file changes
-$ crdt dev --port 8080        # Custom Dev UI port
-
-# Database operations
-$ crdt status app.db          # Database overview
-$ crdt inspect app.db sensor-42 --events  # Entity detail + event log
-$ crdt compact app.db --threshold 100     # Snapshot + truncate events
-$ crdt export app.db --namespace sensors  # JSON export
-
-# Code generation
-$ crdt generate --schema crdt-schema.toml # Generate code from TOML
-$ crdt dev-ui app.db          # Launch web inspector
-```
-
-### `crdt new` — Interactive Project Scaffolding
-
-Create a new crdt-kit project with a polished interactive experience (inspired by `dx new` and `cargo tauri init`):
-
-```
-$ crdt new
-
-◇ crdt-kit — Create a new project
-
-◆ Project name?  my-app
-◆ Platform?      CLI App / Dioxus Client / IoT Device / Edge Computing
-◆ Template?      Minimal / Full / Empty
-◆ Entity name?   Task
-◆ Event sourcing? Yes/No
-◆ Delta sync?     Yes/No
-
-◇ Creating project...
-  ✓ Created my-app/Cargo.toml
-  ✓ Created my-app/crdt-schema.toml
-  ✓ Generated persistence layer
-  ✓ Created my-app/src/main.rs
-
-◇ Done! cd my-app && cargo run
-```
-
-### `crdt dev` — Development Runtime
-
-Launches your app and the Dev UI dashboard side-by-side with live log streaming:
-
-```bash
-$ crdt dev
-  ┌─────────────────────────────────────────┐
-  │  crdt dev — Development Runtime         │
-  ├─────────────────────────────────────────┤
-  │  Schema   crdt-schema.toml              │
-  │  Database my-app.db                     │
-  │  Dev UI   http://localhost:4242         │
-  │  Command  cargo run                     │
-  └─────────────────────────────────────────┘
-
-  [crdt] 10:30:01 Running codegen...
-  [app]  10:30:03 Compiling my-app v0.1.0
-  [ui]   10:30:01 Dev UI running on http://localhost:4242
-  [app]  10:30:05 my-app is running
-```
-
-The Dev UI stays alive after the app exits for database inspection — press Ctrl+C to stop.
-
-### Dev UI
-
-A dark-themed web panel for visual database inspection during development:
-
-```bash
-$ crdt dev-ui app.db
-  Dev UI: http://localhost:4242
-```
-
-Browse namespaces, entities, event logs, version envelopes, and snapshots — all from your browser.
-
----
-
-## Edge Computing & IoT
-
-`crdt-kit` is purpose-built for edge environments. Import it with `no_std` for bare metal or with `serde` for network serialization:
-
-```toml
-# Raspberry Pi / ESP32 / bare metal (no standard library)
-[dependencies]
-crdt-kit = { version = "0.3", default-features = false }
-
-# Edge node with JSON sync over MQTT/HTTP
-[dependencies]
-crdt-kit = { version = "0.4.0-beta.1", features = ["serde"] }
-serde_json = "1"
-```
+### Delta Sync (bandwidth-efficient)
 
 ```rust
 use crdt_kit::prelude::*;
 
-// Edge sensor node collects temperature readings
-let mut sensor_a = GCounter::new("sensor-a");
-let mut sensor_b = GCounter::new("sensor-b");
+let mut edge = GCounter::new(1);
+edge.increment_by(1000);
 
-// Each sensor counts events independently (no network needed)
-sensor_a.increment_by(142); // 142 events detected
-sensor_b.increment_by(89);  // 89 events detected
+let mut cloud = GCounter::new(100);
 
-// When the gateway collects data — merge. Order doesn't matter.
-sensor_a.merge(&sensor_b);
-assert_eq!(sensor_a.value(), 231); // exact total, no double-counting
+// Send only what cloud doesn't have
+let delta = edge.delta(&cloud);
+cloud.apply_delta(&delta);
+assert_eq!(cloud.value(), 1000);
+```
 
-// Delta sync: only send what changed (saves bandwidth on LoRa/BLE)
-let mut gateway = GCounter::new("gateway");
-let delta = sensor_a.delta(&gateway);  // minimal payload
-gateway.apply_delta(&delta);            // gateway is up to date
-assert_eq!(gateway.value(), 231);
+### With Serde
+
+```toml
+[dependencies]
+crdt-kit = { version = "0.5", features = ["serde"] }
+```
+
+### `no_std` (embedded / bare metal)
+
+```toml
+[dependencies]
+crdt-kit = { version = "0.5", default-features = false }
 ```
 
 ---
@@ -427,7 +121,7 @@ assert_eq!(gateway.value(), 231);
 
 | Type | Description | Real-world use |
 |---|---|---|
-| [`LWWRegister`](https://docs.rs/crdt-kit/latest/crdt_kit/struct.LWWRegister.html) | Last-writer-wins | User profile fields, config settings, GPS location |
+| [`LWWRegister`](https://docs.rs/crdt-kit/latest/crdt_kit/struct.LWWRegister.html) | Last-writer-wins (HLC) | User profile fields, config settings, GPS location |
 | [`MVRegister`](https://docs.rs/crdt-kit/latest/crdt_kit/struct.MVRegister.html) | Multi-value (shows conflicts) | Collaborative fields, version tracking |
 
 ### Sets
@@ -437,6 +131,13 @@ assert_eq!(gateway.value(), 231);
 | [`GSet`](https://docs.rs/crdt-kit/latest/crdt_kit/struct.GSet.html) | Grow-only set | Seen message IDs, tags, audit logs |
 | [`TwoPSet`](https://docs.rs/crdt-kit/latest/crdt_kit/struct.TwoPSet.html) | Add & permanent remove | Blocklists, revoked tokens |
 | [`ORSet`](https://docs.rs/crdt-kit/latest/crdt_kit/struct.ORSet.html) | Add & remove freely | Shopping carts, todo lists, chat members |
+
+### Maps
+
+| Type | Description | Real-world use |
+|---|---|---|
+| [`LWWMap`](https://docs.rs/crdt-kit/latest/crdt_kit/struct.LWWMap.html) | Last-writer-wins per key | Sensor config, user preferences, feature flags |
+| [`AWMap`](https://docs.rs/crdt-kit/latest/crdt_kit/struct.AWMap.html) | Add-wins (concurrent add beats remove) | Device registries, permission tables, metadata |
 
 ### Sequences
 
@@ -450,70 +151,98 @@ assert_eq!(gateway.value(), 231);
 | Trait | Description |
 |---|---|
 | [`Crdt`](https://docs.rs/crdt-kit/latest/crdt_kit/trait.Crdt.html) | Core merge semantics (commutative, associative, idempotent) |
-| [`DeltaCrdt`](https://docs.rs/crdt-kit/latest/crdt_kit/trait.DeltaCrdt.html) | Efficient delta sync — send only what changed (all 9 types) |
+| [`DeltaCrdt`](https://docs.rs/crdt-kit/latest/crdt_kit/trait.DeltaCrdt.html) | Efficient delta sync — send only what changed (all 11 types) |
+| [`Versioned`](https://docs.rs/crdt-kit/latest/crdt_kit/trait.Versioned.html) | Schema versioning for serialization envelopes (all 11 types) |
+
+---
+
+## v0.5 Highlights
+
+### Zero-allocation Node IDs
+
+All CRDTs use `NodeId` (`u64`) instead of `String` for replica identity. This eliminates heap allocations on every operation — critical for embedded and IoT targets.
+
+```rust
+// Before (v0.4): heap allocation on every construct
+let mut c = GCounter::new("sensor-a".to_string());
+
+// After (v0.5): zero-cost u64 identity
+let mut c = GCounter::new(1);
+```
+
+### Hybrid Logical Clocks (native)
+
+`LWWRegister` uses `HybridTimestamp` natively — physical clock + logical counter + node_id for total ordering. No more dual-timestamp correctness bugs.
+
+```rust
+use crdt_kit::clock::HybridClock;
+use crdt_kit::prelude::*;
+
+let mut clock = HybridClock::new(1);
+let mut reg = LWWRegister::new("initial", &mut clock);
+reg.set("updated", &mut clock);
+```
+
+### New Map Types
+
+`LWWMap` and `AWMap` complete the CRDT toolbox for key-value workloads:
+
+```rust
+use crdt_kit::prelude::*;
+use crdt_kit::clock::HybridTimestamp;
+
+// LWWMap: per-key last-writer-wins
+let mut config = LWWMap::new();
+let ts = HybridTimestamp { physical: 100, logical: 0, node_id: 1 };
+config.insert("sample_rate", 500, ts);
+
+// AWMap: add-wins (concurrent add beats remove)
+let mut registry = AWMap::new(1);
+registry.insert("sensor-001", "zone-A");
+```
 
 ---
 
 ## Examples
 
 ```bash
-# CRDT basics
 cargo run -p crdt-kit --example counter         # Distributed counters
 cargo run -p crdt-kit --example todo_list        # Collaborative todo list
-cargo run -p crdt-kit --example ecommerce        # E-commerce entities
 cargo run -p crdt-kit --example chat             # Chat with conflict detection
-
-# Persistence & migration
-cargo run -p crdt-store --features sqlite --example iot_sensor      # Schema migration on OTA update
-cargo run -p crdt-store --features sqlite --example collaborative   # Multi-node merge + persist
-cargo run -p crdt-store --features sqlite --example event_sourcing  # Event log, snapshots, compaction
-
-# Full-stack example (codegen + migrations + event sourcing)
-cargo run -p crdt-example-tasks                                     # Task management app
+cargo run -p crdt-kit --example ecommerce        # E-commerce multi-store sync
+cargo run -p crdt-kit --example iot_dashboard    # Full IoT sensor dashboard (all 11 CRDTs)
 ```
 
 ---
 
-## Performance
+## Edge Computing & IoT
 
-Measured with [Criterion](https://github.com/bheisler/criterion.rs) on optimized builds.
+```rust
+use crdt_kit::prelude::*;
 
-### Core Operations
+// Edge sensor nodes count events independently
+let mut sensor_a = GCounter::new(1);
+let mut sensor_b = GCounter::new(2);
 
-| Operation | Time | Throughput |
-|---|---|---|
-| GCounter increment x1000 | **125 µs** | ~8M ops/sec |
-| GCounter merge 10 replicas | **2.2 µs** | ~4.5M merges/sec |
-| GCounter merge 100 replicas | **36 µs** | — |
-| PNCounter inc+dec x1000 | **112 µs** | ~8.9M ops/sec |
-| ORSet insert x1000 | **350 µs** | ~2.8M ops/sec |
-| ORSet merge 500+500 elements | **308 µs** | — |
-| GSet merge 1000+1000 elements | **83 µs** | — |
-| LWWRegister merge 100 replicas | **12.6 µs** | ~7.9M merges/sec |
-| **Rga insert x1000** | **267 µs** | ~3.7M ops/sec |
-| Rga remove x500 | **217 µs** | — |
-| **TextCrdt insert 1000 chars** | **246 µs** | ~4M ops/sec |
-| TextCrdt delta+apply 500+100 | **600 µs** | — |
+sensor_a.increment_by(142); // 142 events detected
+sensor_b.increment_by(89);  // 89 events detected
 
-### vs Automerge & Yrs (Comparative Benchmarks)
+// Gateway merges — order doesn't matter
+sensor_a.merge(&sensor_b);
+assert_eq!(sensor_a.value(), 231); // exact total, no double-counting
 
-| Benchmark | crdt-kit | Yrs 0.25 | Automerge 0.7 | Speedup |
-|---|---|---|---|---|
-| Counter increment x1000 | **33 µs** | — | 23 ms | **700x** vs Automerge |
-| Text insert 1000 chars | **83 µs** | 3.1 ms | 16.5 ms | **37x** vs Yrs, **199x** vs Automerge |
-| List insert 1000 elements | **265 µs** | 16.5 ms | 34.4 ms | **62x** vs Yrs, **130x** vs Automerge |
-| Set insert 1000 | **203 µs** | — | 27.6 ms | **136x** vs Automerge |
-
-```bash
-cargo bench --bench crdt_benchmarks   # Core benchmarks
-cargo bench --bench comparative       # vs Automerge & Yrs
+// Delta sync: only send what changed (saves bandwidth on LoRa/BLE)
+let mut gateway = GCounter::new(100);
+let delta = sensor_a.delta(&gateway);
+gateway.apply_delta(&delta);
+assert_eq!(gateway.value(), 231);
 ```
 
 ---
 
 ## Guarantees
 
-All CRDTs satisfy **Strong Eventual Consistency (SEC)**:
+All 11 CRDTs satisfy **Strong Eventual Consistency (SEC)**:
 
 | Property | Meaning | Why it matters |
 |---|---|---|
@@ -521,36 +250,57 @@ All CRDTs satisfy **Strong Eventual Consistency (SEC)**:
 | **Associativity** | `merge(a, merge(b, c)) == merge(merge(a, b), c)` | Group syncs however you want |
 | **Idempotency** | `merge(a, a) == a` | Safe to retry — no duplicates |
 
-Verified by **193 unit, convergence, and property-based tests** in `crdt-kit` alone (plus additional tests across the workspace). Property-based tests (proptest) verify commutativity, associativity, idempotency, and delta equivalence for all 9 CRDT types with randomized inputs.
+Verified by **151+ tests** (137 unit + 14 integration), **property-based testing** (proptest: commutativity, associativity, idempotency, and delta equivalence for all 11 types), and **6 fuzz targets** for crash resistance under arbitrary input.
+
+---
+
+## Benchmarks
+
+```bash
+cargo bench --bench crdt_benchmarks   # Core benchmarks (Criterion)
+cargo bench --bench comparative       # vs Automerge & Yrs
+```
+
+---
+
+## Feature Flags
+
+| Feature | Default | Description |
+|---|---|---|
+| `std` | Yes | Standard library support |
+| `serde` | No | Serialize/deserialize all CRDT types |
+| `wasm` | No | WebAssembly bindings via wasm-bindgen |
+
+For `no_std`, disable defaults: `default-features = false`
 
 ---
 
 ## Roadmap
 
 - [x] G-Counter, PN-Counter
-- [x] LWW-Register, MV-Register
+- [x] LWW-Register (HLC-native), MV-Register
 - [x] G-Set, 2P-Set, OR-Set
+- [x] LWW-Map, AW-Map (v0.5)
 - [x] RGA List (ordered sequence)
-- [x] Text CRDT (collaborative text editing)
+- [x] Text CRDT (collaborative text, thin `Rga<char>` wrapper)
 - [x] `no_std` support (embedded / bare metal)
 - [x] `serde` serialization support
-- [x] Delta-state optimization (9/9 types with `DeltaCrdt` trait)
-- [x] Property-based testing (proptest) — 32 tests covering all CRDT guarantees
-- [x] HLC (Hybrid Logical Clock) integration for LWWRegister
-- [x] Tombstone compaction for ORSet (`compact()`)
-- [x] Error handling for RGA/TextCrdt operations (`RgaError`, `TextError`)
-- [x] WASM bindings
-- [x] Persistent storage (SQLite + redb)
-- [x] High-level CrdtDb API with version envelopes
-- [x] Transparent schema migrations (`#[crdt_schema]` + `#[migration]`)
-- [x] Developer CLI (`crdt status/inspect/compact/export/generate`)
-- [x] Dev UI web panel
-- [x] Code generation from TOML schemas (`crdt generate`)
-- [x] Interactive project scaffolding (`crdt new`) with platform & template selection
-- [x] Development runtime (`crdt dev`) with live logs, Dev UI dashboard, and auto-codegen
+- [x] Delta-state optimization (11/11 types with `DeltaCrdt` trait)
+- [x] HLC (Hybrid Logical Clock) — native `HybridTimestamp`
+- [x] `NodeId` (`u64`) — zero heap allocations
+- [x] Tombstone compaction for ORSet
+- [x] Error handling for RGA/TextCrdt (`RgaError`, `TextError`)
+- [x] WASM bindings (GCounter, PNCounter, LWWRegister, GSet, ORSet, TextCrdt)
+- [x] Fuzz testing (6 targets via cargo-fuzz)
+- [x] IoT Sensor Dashboard example (all 11 CRDTs)
+- [x] `Versioned` trait with `CrdtType` enum for all 11 types
+- [x] `HybridClock` derives `Debug + Clone`, accepts `NodeId` (u64)
+- [x] RGA merge optimization (two-phase: tombstones then inserts, no index-shift loop)
+- [x] Memory footprint benchmarks for embedded use case
 - [ ] Network transport layer (TCP, WebSocket, QUIC)
 - [ ] Sync protocol (delta-based replication)
-- [x] Benchmarks against Automerge / Yrs (37–700x faster)
+- [ ] AWMap tombstone compaction
+- [ ] Rope-backed RGA for large documents (>10K elements)
 
 ---
 

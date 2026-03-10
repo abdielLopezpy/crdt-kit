@@ -1,3 +1,19 @@
+/// Compact node identifier for CRDT replicas.
+///
+/// Uses `u64` instead of `String` to avoid heap allocations on every
+/// operation — critical for embedded/IoT targets where `alloc` is expensive.
+///
+/// # Example
+///
+/// ```
+/// use crdt_kit::prelude::*;
+///
+/// let mut c = GCounter::new(1); // NodeId = 1
+/// c.increment();
+/// assert_eq!(c.value(), 1);
+/// ```
+pub type NodeId = u64;
+
 /// Core trait that all CRDTs must implement.
 ///
 /// A CRDT (Conflict-free Replicated Data Type) guarantees that concurrent
@@ -29,11 +45,11 @@ pub trait Crdt {
 /// ```
 /// use crdt_kit::prelude::*;
 ///
-/// let mut c1 = GCounter::new("a");
+/// let mut c1 = GCounter::new(1);
 /// c1.increment();
 /// c1.increment();
 ///
-/// let mut c2 = GCounter::new("b");
+/// let mut c2 = GCounter::new(2);
 /// c2.increment();
 ///
 /// // Generate a delta from c1 that c2 doesn't have

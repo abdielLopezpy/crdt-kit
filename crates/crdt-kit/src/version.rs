@@ -27,6 +27,10 @@ pub enum CrdtType {
     Rga = 8,
     /// Collaborative text.
     TextCrdt = 9,
+    /// Last-writer-wins map.
+    LWWMap = 10,
+    /// Add-wins map.
+    AWMap = 11,
 }
 
 /// Trait for CRDT types that support versioned serialization.
@@ -57,4 +61,64 @@ impl fmt::Display for VersionError {
             Self::Deserialize(msg) => write!(f, "deserialization error: {msg}"),
         }
     }
+}
+
+#[cfg(feature = "std")]
+impl std::error::Error for VersionError {}
+
+// --- Versioned implementations for all 11 CRDT types ---
+
+impl Versioned for crate::GCounter {
+    const CURRENT_VERSION: u8 = 1;
+    const CRDT_TYPE: CrdtType = CrdtType::GCounter;
+}
+
+impl Versioned for crate::PNCounter {
+    const CURRENT_VERSION: u8 = 1;
+    const CRDT_TYPE: CrdtType = CrdtType::PNCounter;
+}
+
+impl<T: Ord + Clone> Versioned for crate::GSet<T> {
+    const CURRENT_VERSION: u8 = 1;
+    const CRDT_TYPE: CrdtType = CrdtType::GSet;
+}
+
+impl<T: Ord + Clone> Versioned for crate::TwoPSet<T> {
+    const CURRENT_VERSION: u8 = 1;
+    const CRDT_TYPE: CrdtType = CrdtType::TwoPSet;
+}
+
+impl<T: Clone> Versioned for crate::LWWRegister<T> {
+    const CURRENT_VERSION: u8 = 1;
+    const CRDT_TYPE: CrdtType = CrdtType::LWWRegister;
+}
+
+impl<T: Clone + Ord> Versioned for crate::MVRegister<T> {
+    const CURRENT_VERSION: u8 = 1;
+    const CRDT_TYPE: CrdtType = CrdtType::MVRegister;
+}
+
+impl<T: Ord + Clone> Versioned for crate::ORSet<T> {
+    const CURRENT_VERSION: u8 = 1;
+    const CRDT_TYPE: CrdtType = CrdtType::ORSet;
+}
+
+impl<T: Clone + Ord> Versioned for crate::Rga<T> {
+    const CURRENT_VERSION: u8 = 1;
+    const CRDT_TYPE: CrdtType = CrdtType::Rga;
+}
+
+impl Versioned for crate::TextCrdt {
+    const CURRENT_VERSION: u8 = 1;
+    const CRDT_TYPE: CrdtType = CrdtType::TextCrdt;
+}
+
+impl<K: Ord + Clone, V: Clone> Versioned for crate::LWWMap<K, V> {
+    const CURRENT_VERSION: u8 = 1;
+    const CRDT_TYPE: CrdtType = CrdtType::LWWMap;
+}
+
+impl<K: Ord + Clone, V: Clone + Eq> Versioned for crate::AWMap<K, V> {
+    const CURRENT_VERSION: u8 = 1;
+    const CRDT_TYPE: CrdtType = CrdtType::AWMap;
 }

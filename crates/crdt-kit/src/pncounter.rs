@@ -1,6 +1,4 @@
-use alloc::string::String;
-
-use crate::{Crdt, DeltaCrdt, GCounter, GCounterDelta};
+use crate::{Crdt, DeltaCrdt, GCounter, GCounterDelta, NodeId};
 
 /// A positive-negative counter (PN-Counter).
 ///
@@ -13,13 +11,13 @@ use crate::{Crdt, DeltaCrdt, GCounter, GCounterDelta};
 /// ```
 /// use crdt_kit::prelude::*;
 ///
-/// let mut c1 = PNCounter::new("node-1");
+/// let mut c1 = PNCounter::new(1);
 /// c1.increment();
 /// c1.increment();
 /// c1.decrement();
 /// assert_eq!(c1.value(), 1);
 ///
-/// let mut c2 = PNCounter::new("node-2");
+/// let mut c2 = PNCounter::new(2);
 /// c2.decrement();
 ///
 /// c1.merge(&c2);
@@ -33,11 +31,10 @@ pub struct PNCounter {
 }
 
 impl PNCounter {
-    /// Create a new PN-Counter for the given actor/replica ID.
-    pub fn new(actor: impl Into<String>) -> Self {
-        let actor = actor.into();
+    /// Create a new PN-Counter for the given node.
+    pub fn new(actor: NodeId) -> Self {
         Self {
-            increments: GCounter::new(actor.clone()),
+            increments: GCounter::new(actor),
             decrements: GCounter::new(actor),
         }
     }
@@ -96,13 +93,13 @@ mod tests {
 
     #[test]
     fn new_counter_is_zero() {
-        let c = PNCounter::new("a");
+        let c = PNCounter::new(1);
         assert_eq!(c.value(), 0);
     }
 
     #[test]
     fn increment_and_decrement() {
-        let mut c = PNCounter::new("a");
+        let mut c = PNCounter::new(1);
         c.increment();
         c.increment();
         c.decrement();
@@ -111,7 +108,7 @@ mod tests {
 
     #[test]
     fn can_go_negative() {
-        let mut c = PNCounter::new("a");
+        let mut c = PNCounter::new(1);
         c.decrement();
         c.decrement();
         assert_eq!(c.value(), -2);
@@ -119,23 +116,23 @@ mod tests {
 
     #[test]
     fn merge_different_actors() {
-        let mut c1 = PNCounter::new("a");
+        let mut c1 = PNCounter::new(1);
         c1.increment();
         c1.increment();
 
-        let mut c2 = PNCounter::new("b");
+        let mut c2 = PNCounter::new(2);
         c2.decrement();
 
         c1.merge(&c2);
-        assert_eq!(c1.value(), 1); // 2 - 1
+        assert_eq!(c1.value(), 1);
     }
 
     #[test]
     fn merge_is_commutative() {
-        let mut c1 = PNCounter::new("a");
+        let mut c1 = PNCounter::new(1);
         c1.increment();
 
-        let mut c2 = PNCounter::new("b");
+        let mut c2 = PNCounter::new(2);
         c2.decrement();
         c2.decrement();
 
@@ -150,10 +147,10 @@ mod tests {
 
     #[test]
     fn merge_is_idempotent() {
-        let mut c1 = PNCounter::new("a");
+        let mut c1 = PNCounter::new(1);
         c1.increment();
 
-        let mut c2 = PNCounter::new("b");
+        let mut c2 = PNCounter::new(2);
         c2.decrement();
 
         c1.merge(&c2);
@@ -165,12 +162,12 @@ mod tests {
 
     #[test]
     fn delta_apply_equivalent_to_merge() {
-        let mut c1 = PNCounter::new("a");
+        let mut c1 = PNCounter::new(1);
         c1.increment();
         c1.increment();
         c1.decrement();
 
-        let mut c2 = PNCounter::new("b");
+        let mut c2 = PNCounter::new(2);
         c2.decrement();
 
         let mut full = c2.clone();

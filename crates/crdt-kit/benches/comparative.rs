@@ -15,7 +15,7 @@ fn bench_counter_increment(c: &mut Criterion) {
     group.bench_function("crdt-kit GCounter", |b| {
         use crdt_kit::prelude::*;
         b.iter(|| {
-            let mut counter = GCounter::new("bench");
+            let mut counter = GCounter::new(1);
             for _ in 0..1000 {
                 counter.increment();
             }
@@ -47,7 +47,7 @@ fn bench_text_insert(c: &mut Criterion) {
     group.bench_function("crdt-kit TextCrdt", |b| {
         use crdt_kit::prelude::*;
         b.iter(|| {
-            let mut t = TextCrdt::new("bench");
+            let mut t = TextCrdt::new(1);
             for i in 0..1000 {
                 t.insert(i, 'a').unwrap();
             }
@@ -90,9 +90,9 @@ fn bench_text_merge(c: &mut Criterion) {
 
     group.bench_function("crdt-kit TextCrdt", |b| {
         use crdt_kit::prelude::*;
-        let mut t1 = TextCrdt::new("alice");
+        let mut t1 = TextCrdt::new(1);
         t1.insert_str(0, &"a".repeat(500)).unwrap();
-        let mut t2 = TextCrdt::new("bob");
+        let mut t2 = TextCrdt::new(2);
         t2.insert_str(0, &"b".repeat(500)).unwrap();
 
         b.iter(|| {
@@ -185,7 +185,7 @@ fn bench_list_insert(c: &mut Criterion) {
     group.bench_function("crdt-kit Rga", |b| {
         use crdt_kit::prelude::*;
         b.iter(|| {
-            let mut rga = Rga::new("bench");
+            let mut rga = Rga::new(1);
             for i in 0..1000u32 {
                 rga.insert_at(i as usize, i).unwrap();
             }
@@ -229,7 +229,7 @@ fn bench_set_insert(c: &mut Criterion) {
     group.bench_function("crdt-kit ORSet", |b| {
         use crdt_kit::prelude::*;
         b.iter(|| {
-            let mut set = ORSet::new("bench");
+            let mut set = ORSet::new(1);
             for i in 0..1000u32 {
                 set.insert(i);
             }
@@ -259,12 +259,12 @@ fn bench_delta_sync(c: &mut Criterion) {
 
     group.bench_function("GCounter delta+apply", |b| {
         use crdt_kit::prelude::*;
-        let mut c1 = GCounter::new("a");
+        let mut c1 = GCounter::new(1);
         c1.increment_by(1000);
-        let mut c2 = GCounter::new("b");
+        let mut c2 = GCounter::new(2);
         c2.increment_by(500);
         c2.merge(&c1);
-        c1.increment_by(100); // c1 has 100 new increments
+        c1.increment_by(100);
 
         b.iter(|| {
             let delta = c1.delta(&c2);
@@ -276,9 +276,9 @@ fn bench_delta_sync(c: &mut Criterion) {
 
     group.bench_function("TextCrdt delta+apply (500 base + 100 new)", |b| {
         use crdt_kit::prelude::*;
-        let mut t1 = TextCrdt::new("alice");
+        let mut t1 = TextCrdt::new(1);
         t1.insert_str(0, &"a".repeat(500)).unwrap();
-        let mut t2 = t1.fork("bob");
+        let mut t2 = t1.fork(2);
         t2.insert_str(500, &"b".repeat(100)).unwrap();
 
         b.iter(|| {

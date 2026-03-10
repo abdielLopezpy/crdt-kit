@@ -3,17 +3,14 @@
 //! Verifies the three fundamental CRDT laws (commutativity, associativity,
 //! idempotency) and delta equivalence under random operation sequences.
 
+use crdt_kit::clock::HybridTimestamp;
 use crdt_kit::prelude::*;
 use proptest::prelude::*;
 
 // ─── Strategies ──────────────────────────────────────────────────────
 
-fn actor_id() -> impl Strategy<Value = String> {
-    prop::sample::select(vec![
-        "a".to_string(),
-        "b".to_string(),
-        "c".to_string(),
-    ])
+fn node_id() -> impl Strategy<Value = NodeId> {
+    prop::sample::select(vec![1u64, 2, 3])
 }
 
 fn small_u64() -> impl Strategy<Value = u64> {
@@ -23,8 +20,8 @@ fn small_u64() -> impl Strategy<Value = u64> {
 // ─── GCounter ────────────────────────────────────────────────────────
 
 fn gcounter_with_ops() -> impl Strategy<Value = GCounter> {
-    (actor_id(), prop::collection::vec(small_u64(), 0..20)).prop_map(|(actor, ops)| {
-        let mut c = GCounter::new(&actor);
+    (node_id(), prop::collection::vec(small_u64(), 0..20)).prop_map(|(actor, ops)| {
+        let mut c = GCounter::new(actor);
         for n in ops {
             c.increment_by(n);
         }
@@ -92,11 +89,11 @@ enum PNOp {
 
 fn pncounter_with_ops() -> impl Strategy<Value = PNCounter> {
     (
-        actor_id(),
+        node_id(),
         prop::collection::vec(prop::sample::select(vec![PNOp::Inc, PNOp::Dec]), 0..20),
     )
         .prop_map(|(actor, ops)| {
-            let mut c = PNCounter::new(&actor);
+            let mut c = PNCounter::new(actor);
             for op in ops {
                 match op {
                     PNOp::Inc => c.increment(),
@@ -160,8 +157,15 @@ proptest! {
 // ─── LWWRegister ─────────────────────────────────────────────────────
 
 fn lww_register() -> impl Strategy<Value = LWWRegister<u32>> {
-    (actor_id(), 0u32..1000, 0u64..10000).prop_map(|(actor, val, ts)| {
-        LWWRegister::with_timestamp(actor, val, ts)
+    (0u32..1000, 0u64..10000, 0u16..100, 0u16..10).prop_map(|(val, phys, logical, node)| {
+        LWWRegister::with_timestamp(
+            val,
+            HybridTimestamp {
+                physical: phys,
+                logical,
+                node_id: node,
+            },
+        )
     })
 }
 
@@ -205,11 +209,11 @@ fn mvregister_pair() -> impl Strategy<Value = (MVRegister<u32>, MVRegister<u32>)
         prop::collection::vec(0u32..100, 1..5),
     )
         .prop_map(|(vals_a, vals_b)| {
-            let mut a = MVRegister::new("a");
+            let mut a = MVRegister::new(1);
             for v in vals_a {
                 a.set(v);
             }
-            let mut b = MVRegister::new("b");
+            let mut b = MVRegister::new(2);
             for v in vals_b {
                 b.set(v);
             }
@@ -398,7 +402,7 @@ enum ORSetOp {
 
 fn orset_with_ops() -> impl Strategy<Value = ORSet<u32>> {
     (
-        actor_id(),
+        node_id(),
         prop::collection::vec(
             prop_oneof![
                 (0u32..20).prop_map(ORSetOp::Insert),
@@ -408,7 +412,7 @@ fn orset_with_ops() -> impl Strategy<Value = ORSet<u32>> {
         ),
     )
         .prop_map(|(actor, ops)| {
-            let mut s = ORSet::new(&actor);
+            let mut s = ORSet::new(actor);
             for op in ops {
                 match op {
                     ORSetOp::Insert(v) => {
@@ -500,7 +504,7 @@ fn rga_pair() -> impl Strategy<Value = (Rga<u32>, Rga<u32>)> {
         ),
     )
         .prop_map(|(ops_a, ops_b)| {
-            let mut a = Rga::new("rga-a");
+            let mut a = Rga::new(1);
             for op in ops_a {
                 match op {
                     RgaOp::Insert(idx, val) => {
@@ -510,11 +514,11 @@ fn rga_pair() -> impl Strategy<Value = (Rga<u32>, Rga<u32>)> {
                     }
                     RgaOp::Remove(idx) => {
                         let len = a.len();
-                        if len > 0 { a.remove(idx % len); }
+                        if len > 0 { let _ = a.remove(idx % len); }
                     }
                 }
             }
-            let mut b = Rga::new("rga-b");
+            let mut b = Rga::new(2);
             for op in ops_b {
                 match op {
                     RgaOp::Insert(idx, val) => {
@@ -524,7 +528,7 @@ fn rga_pair() -> impl Strategy<Value = (Rga<u32>, Rga<u32>)> {
                     }
                     RgaOp::Remove(idx) => {
                         let len = b.len();
-                        if len > 0 { b.remove(idx % len); }
+                        if len > 0 { let _ = b.remove(idx % len); }
                     }
                 }
             }
@@ -584,7 +588,7 @@ fn text_pair() -> impl Strategy<Value = (TextCrdt, TextCrdt)> {
         ),
     )
         .prop_map(|(ops_a, ops_b)| {
-            let mut a = TextCrdt::new("text-a");
+            let mut a = TextCrdt::new(1);
             for (is_insert, idx, ch) in ops_a {
                 let len = a.len();
                 if is_insert {
@@ -594,7 +598,7 @@ fn text_pair() -> impl Strategy<Value = (TextCrdt, TextCrdt)> {
                     let _ = a.remove(idx % len);
                 }
             }
-            let mut b = TextCrdt::new("text-b");
+            let mut b = TextCrdt::new(2);
             for (is_insert, idx, ch) in ops_b {
                 let len = b.len();
                 if is_insert {

@@ -2,13 +2,6 @@
 resolver = "2"
 members = [
     "crates/crdt-kit",
-    "crates/crdt-store",
-    "crates/crdt-migrate",
-    "crates/crdt-migrate-macros",
-    "crates/crdt-cli",
-    "crates/crdt-dev-ui",
-    "crates/crdt-codegen",
-    "crates/crdt-example-tasks",
 ]
 
 [workspace.package]

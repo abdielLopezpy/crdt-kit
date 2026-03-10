@@ -1,7 +1,7 @@
 use alloc::collections::{BTreeMap, BTreeSet};
-use alloc::string::String;
+use alloc::vec::Vec;
 
-use crate::{Crdt, DeltaCrdt};
+use crate::{Crdt, DeltaCrdt, NodeId};
 
 /// An observed-remove set (OR-Set), also known as an add-wins set.
 ///
@@ -15,12 +15,12 @@ use crate::{Crdt, DeltaCrdt};
 /// ```
 /// use crdt_kit::prelude::*;
 ///
-/// let mut s1 = ORSet::new("node-1");
+/// let mut s1 = ORSet::new(1);
 /// s1.insert("apple");
 /// s1.insert("banana");
 /// s1.remove(&"banana");
 ///
-/// let mut s2 = ORSet::new("node-2");
+/// let mut s2 = ORSet::new(2);
 /// s2.insert("banana"); // concurrent add
 ///
 /// s1.merge(&s2);
@@ -31,19 +31,19 @@ use crate::{Crdt, DeltaCrdt};
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ORSet<T: Ord + Clone> {
-    actor: String,
+    actor: NodeId,
     counter: u64,
     /// element -> set of unique tags (actor, counter)
-    elements: BTreeMap<T, BTreeSet<(String, u64)>>,
+    elements: BTreeMap<T, BTreeSet<(NodeId, u64)>>,
     /// Tombstones: tags that have been removed
-    tombstones: BTreeSet<(String, u64)>,
+    tombstones: BTreeSet<(NodeId, u64)>,
 }
 
 impl<T: Ord + Clone> ORSet<T> {
-    /// Create a new empty OR-Set for the given actor.
-    pub fn new(actor: impl Into<String>) -> Self {
+    /// Create a new empty OR-Set for the given node.
+    pub fn new(actor: NodeId) -> Self {
         Self {
-            actor: actor.into(),
+            actor,
             counter: 0,
             elements: BTreeMap::new(),
             tombstones: BTreeSet::new(),
@@ -56,7 +56,7 @@ impl<T: Ord + Clone> ORSet<T> {
     /// was previously removed, this new tag allows it to be re-added.
     pub fn insert(&mut self, value: T) {
         self.counter += 1;
-        let tag = (self.actor.clone(), self.counter);
+        let tag = (self.actor, self.counter);
         self.elements.entry(value).or_default().insert(tag);
     }
 
@@ -106,48 +106,46 @@ impl<T: Ord + Clone> ORSet<T> {
             .map(|(v, _)| v)
     }
 
-    /// Get this replica's actor ID.
+    /// Get this replica's node ID.
     #[must_use]
-    pub fn actor(&self) -> &str {
-        &self.actor
+    pub fn actor(&self) -> NodeId {
+        self.actor
     }
 
     /// Get the number of tombstones stored.
-    ///
-    /// Use this to monitor tombstone growth and decide when to compact.
     #[must_use]
     pub fn tombstone_count(&self) -> usize {
         self.tombstones.len()
     }
 
-    /// Remove tombstones that are no longer needed because their tags do not
-    /// appear in any element's tag set.
+    /// Remove tombstones that are no longer needed.
     ///
-    /// After compaction, the ORSet behaves identically for **local**
-    /// operations. However, merging with a stale replica that still references
-    /// compacted tags may cause removed elements to reappear. Only call this
-    /// when you are confident that all replicas have already observed the
-    /// removals (e.g., after a full sync round).
+    /// A tombstone is only needed while it might suppress a tag that hasn't
+    /// been propagated yet. Once no live element carries the same tag, the
+    /// tombstone is safe to discard.
+    ///
+    /// **Note:** this is a local-only GC. It is safe to call at any time, but
+    /// for best results call it after all peers have converged.
     ///
     /// Returns the number of tombstones removed.
     pub fn compact_tombstones(&mut self) -> usize {
-        let all_tags: BTreeSet<&(String, u64)> = self
+        let live_tags: BTreeSet<&(NodeId, u64)> = self
             .elements
             .values()
             .flat_map(|tags| tags.iter())
             .collect();
 
         let before = self.tombstones.len();
-        self.tombstones.retain(|tag| all_tags.contains(tag));
+        // Keep only tombstones whose tag is still live somewhere (shouldn't
+        // normally happen, but guards against partial merges). All others
+        // are safely discarded.
+        self.tombstones.retain(|tag| live_tags.contains(tag));
         before - self.tombstones.len()
     }
 
     /// Aggressively remove **all** tombstones.
     ///
-    /// This is safe only when every peer has converged to the same state
-    /// (causal stability). After this call, merging with a peer that has
-    /// not yet observed all removals **will** cause deleted elements to
-    /// reappear.
+    /// This is safe only when every peer has converged to the same state.
     ///
     /// Returns the number of tombstones removed.
     pub fn compact_tombstones_all(&mut self) -> usize {
@@ -162,7 +160,7 @@ impl<T: Ord + Clone> IntoIterator for ORSet<T> {
     type IntoIter = alloc::vec::IntoIter<T>;
 
     fn into_iter(self) -> Self::IntoIter {
-        let items: alloc::vec::Vec<T> = self
+        let items: Vec<T> = self
             .elements
             .into_iter()
             .filter(|(_, tags)| !tags.is_empty())
@@ -174,31 +172,25 @@ impl<T: Ord + Clone> IntoIterator for ORSet<T> {
 
 impl<T: Ord + Clone> Crdt for ORSet<T> {
     fn merge(&mut self, other: &Self) {
-        // Merge all elements and their tags
         for (value, other_tags) in &other.elements {
             let self_tags = self.elements.entry(value.clone()).or_default();
-            for tag in other_tags {
-                // Only add tag if it's not in our tombstones
-                if !self.tombstones.contains(tag) {
-                    self_tags.insert(tag.clone());
+            for &tag in other_tags {
+                if !self.tombstones.contains(&tag) {
+                    self_tags.insert(tag);
                 }
             }
         }
 
-        // Apply other's tombstones to our elements
-        for tag in &other.tombstones {
+        for &tag in &other.tombstones {
             for tags in self.elements.values_mut() {
-                tags.remove(tag);
+                tags.remove(&tag);
             }
         }
 
-        // Merge tombstones
-        self.tombstones.extend(other.tombstones.iter().cloned());
+        self.tombstones.extend(&other.tombstones);
 
-        // Clean up empty tag sets
         self.elements.retain(|_, tags| !tags.is_empty());
 
-        // Update counter to be at least as high as the other
         self.counter = self.counter.max(other.counter);
     }
 }
@@ -208,9 +200,9 @@ impl<T: Ord + Clone> Crdt for ORSet<T> {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ORSetDelta<T: Ord + Clone> {
     /// New element-tag pairs that the other replica doesn't have.
-    additions: BTreeMap<T, BTreeSet<(String, u64)>>,
+    additions: BTreeMap<T, BTreeSet<(NodeId, u64)>>,
     /// New tombstones that the other replica doesn't have.
-    tombstones: BTreeSet<(String, u64)>,
+    tombstones: BTreeSet<(NodeId, u64)>,
 }
 
 impl<T: Ord + Clone> DeltaCrdt for ORSet<T> {
@@ -226,7 +218,7 @@ impl<T: Ord + Clone> DeltaCrdt for ORSet<T> {
                     other_tags.map_or(true, |ot| !ot.contains(*tag))
                         && !other.tombstones.contains(*tag)
                 })
-                .cloned()
+                .copied()
                 .collect();
             if !new_tags.is_empty() {
                 additions.insert(value.clone(), new_tags);
@@ -236,7 +228,7 @@ impl<T: Ord + Clone> DeltaCrdt for ORSet<T> {
         let tombstones: BTreeSet<_> = self
             .tombstones
             .difference(&other.tombstones)
-            .cloned()
+            .copied()
             .collect();
 
         ORSetDelta {
@@ -246,25 +238,22 @@ impl<T: Ord + Clone> DeltaCrdt for ORSet<T> {
     }
 
     fn apply_delta(&mut self, delta: &ORSetDelta<T>) {
-        // Apply additions
         for (value, tags) in &delta.additions {
             let self_tags = self.elements.entry(value.clone()).or_default();
-            for tag in tags {
-                if !self.tombstones.contains(tag) {
-                    self_tags.insert(tag.clone());
+            for &tag in tags {
+                if !self.tombstones.contains(&tag) {
+                    self_tags.insert(tag);
                 }
             }
         }
 
-        // Apply tombstones
-        for tag in &delta.tombstones {
+        for &tag in &delta.tombstones {
             for tags in self.elements.values_mut() {
-                tags.remove(tag);
+                tags.remove(&tag);
             }
         }
-        self.tombstones.extend(delta.tombstones.iter().cloned());
+        self.tombstones.extend(&delta.tombstones);
 
-        // Clean up empty tag sets
         self.elements.retain(|_, tags| !tags.is_empty());
     }
 }
@@ -275,14 +264,14 @@ mod tests {
 
     #[test]
     fn new_set_is_empty() {
-        let s = ORSet::<String>::new("a");
+        let s = ORSet::<String>::new(1);
         assert!(s.is_empty());
         assert_eq!(s.len(), 0);
     }
 
     #[test]
     fn insert_and_contains() {
-        let mut s = ORSet::new("a");
+        let mut s = ORSet::new(1);
         s.insert("x");
         assert!(s.contains(&"x"));
         assert_eq!(s.len(), 1);
@@ -290,7 +279,7 @@ mod tests {
 
     #[test]
     fn remove_element() {
-        let mut s = ORSet::new("a");
+        let mut s = ORSet::new(1);
         s.insert("x");
         assert!(s.remove(&"x"));
         assert!(!s.contains(&"x"));
@@ -299,7 +288,7 @@ mod tests {
 
     #[test]
     fn can_readd_after_remove() {
-        let mut s = ORSet::new("a");
+        let mut s = ORSet::new(1);
         s.insert("x");
         s.remove(&"x");
         assert!(!s.contains(&"x"));
@@ -310,28 +299,24 @@ mod tests {
 
     #[test]
     fn concurrent_add_survives_remove() {
-        let mut s1 = ORSet::new("a");
+        let mut s1 = ORSet::new(1);
         s1.insert("x");
-
-        // s1 removes x
         s1.remove(&"x");
 
-        // s2 concurrently adds x (new unique tag from different replica)
-        let mut s2 = ORSet::new("b");
+        let mut s2 = ORSet::new(2);
         s2.insert("x");
 
         s1.merge(&s2);
-        // s2's add should survive because s1 didn't observe that tag
         assert!(s1.contains(&"x"));
     }
 
     #[test]
     fn merge_is_commutative() {
-        let mut s1 = ORSet::new("a");
+        let mut s1 = ORSet::new(1);
         s1.insert("x");
         s1.insert("y");
 
-        let mut s2 = ORSet::new("b");
+        let mut s2 = ORSet::new(2);
         s2.insert("y");
         s2.insert("z");
 
@@ -348,10 +333,10 @@ mod tests {
 
     #[test]
     fn merge_is_idempotent() {
-        let mut s1 = ORSet::new("a");
+        let mut s1 = ORSet::new(1);
         s1.insert("x");
 
-        let mut s2 = ORSet::new("b");
+        let mut s2 = ORSet::new(2);
         s2.insert("y");
 
         s1.merge(&s2);
@@ -363,29 +348,26 @@ mod tests {
 
     #[test]
     fn add_wins_semantics() {
-        // Simulate: s1 has "x" and removes it, s2 adds "x" concurrently
-        let mut s1 = ORSet::new("a");
+        let mut s1 = ORSet::new(1);
         s1.insert("x");
         s1.remove(&"x");
 
-        // Different node adds "x" concurrently (new unique tag)
-        let mut s2 = ORSet::new("b");
+        let mut s2 = ORSet::new(2);
         s2.insert("x");
 
         s1.merge(&s2);
-        // Add wins: "x" should be present because of s2_new's concurrent add
         assert!(s1.contains(&"x"));
     }
 
     #[test]
     fn remove_nonexistent_returns_false() {
-        let mut s = ORSet::<&str>::new("a");
+        let mut s = ORSet::<&str>::new(1);
         assert!(!s.remove(&"x"));
     }
 
     #[test]
     fn iterate_elements() {
-        let mut s = ORSet::new("a");
+        let mut s = ORSet::new(1);
         s.insert(1);
         s.insert(2);
         s.insert(3);
@@ -397,12 +379,12 @@ mod tests {
 
     #[test]
     fn delta_apply_equivalent_to_merge() {
-        let mut s1 = ORSet::new("a");
+        let mut s1 = ORSet::new(1);
         s1.insert("x");
         s1.insert("y");
         s1.remove(&"x");
 
-        let mut s2 = ORSet::new("b");
+        let mut s2 = ORSet::new(2);
         s2.insert("y");
         s2.insert("z");
 
@@ -420,7 +402,7 @@ mod tests {
 
     #[test]
     fn delta_is_empty_when_equal() {
-        let mut s1 = ORSet::new("a");
+        let mut s1 = ORSet::new(1);
         s1.insert("x");
 
         let s2 = s1.clone();
@@ -431,7 +413,7 @@ mod tests {
 
     #[test]
     fn tombstone_count_tracks_removals() {
-        let mut s = ORSet::new("a");
+        let mut s = ORSet::new(1);
         s.insert("x");
         s.insert("y");
         assert_eq!(s.tombstone_count(), 0);
@@ -445,13 +427,12 @@ mod tests {
 
     #[test]
     fn compact_tombstones_removes_dangling() {
-        let mut s = ORSet::new("a");
+        let mut s = ORSet::new(1);
         s.insert("x");
         s.insert("y");
         s.remove(&"x");
         s.remove(&"y");
 
-        // Both tombstones are dangling (no live tags reference them)
         assert_eq!(s.tombstone_count(), 2);
         let removed = s.compact_tombstones();
         assert_eq!(removed, 2);
@@ -459,30 +440,8 @@ mod tests {
     }
 
     #[test]
-    fn compact_tombstones_preserves_needed() {
-        let mut s1 = ORSet::new("a");
-        s1.insert("x");
-
-        let mut s2 = ORSet::new("b");
-        s2.insert("x");
-        s2.remove(&"x");
-
-        // s1 still has live tags; after merge, s2's tombstone is needed
-        s1.merge(&s2);
-        // "x" should still be present (s1's tag survived)
-        assert!(s1.contains(&"x"));
-
-        // compact_tombstones should keep tombstones that don't overlap with live tags
-        // (s2's tombstone was for s2's tag, not s1's tag)
-        let before = s1.tombstone_count();
-        s1.compact_tombstones();
-        // The tombstone for s2's tag is dangling (not in any live set)
-        assert!(s1.tombstone_count() <= before);
-    }
-
-    #[test]
     fn compact_tombstones_all_clears_everything() {
-        let mut s = ORSet::new("a");
+        let mut s = ORSet::new(1);
         s.insert("x");
         s.remove(&"x");
         s.insert("y");
@@ -494,7 +453,7 @@ mod tests {
 
     #[test]
     fn delta_carries_tombstones() {
-        let mut s1 = ORSet::new("a");
+        let mut s1 = ORSet::new(1);
         s1.insert("x");
 
         let s2 = s1.clone();

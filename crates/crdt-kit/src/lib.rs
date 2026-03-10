@@ -14,11 +14,8 @@
 //!
 //! ```toml
 //! [dependencies]
-//! crdt-kit = { version = "0.2", default-features = false }
+//! crdt-kit = { version = "0.5.0", default-features = false }
 //! ```
-//!
-//! Note: [`LWWRegister::new`] and [`LWWRegister::set`] require the `std`
-//! feature for automatic timestamps via `SystemTime`.
 //!
 //! ## Quick Start
 //!
@@ -26,10 +23,10 @@
 //! use crdt_kit::prelude::*;
 //!
 //! // Grow-only counter
-//! let mut c1 = GCounter::new("device-1");
+//! let mut c1 = GCounter::new(1);
 //! c1.increment();
 //!
-//! let mut c2 = GCounter::new("device-2");
+//! let mut c2 = GCounter::new(2);
 //! c2.increment();
 //!
 //! c1.merge(&c2);
@@ -43,13 +40,21 @@
 //! - [`PNCounter`] - Positive-negative counter (increment and decrement)
 //!
 //! ### Registers
-//! - [`LWWRegister`] - Last-writer-wins register (timestamp-based resolution)
+//! - [`LWWRegister`] - Last-writer-wins register (HLC-based resolution)
 //! - [`MVRegister`] - Multi-value register (preserves concurrent writes)
 //!
 //! ### Sets
 //! - [`GSet`] - Grow-only set (add only)
 //! - [`TwoPSet`] - Two-phase set (add and remove, remove is permanent)
 //! - [`ORSet`] - Observed-remove set (add and remove freely)
+//!
+//! ### Maps
+//! - [`LWWMap`] - Last-writer-wins map (per-key HLC timestamp resolution)
+//! - [`AWMap`] - Add-wins map (OR-Set semantics for keys, concurrent add beats remove)
+//!
+//! ### Sequences
+//! - [`Rga`] - Replicated Growable Array (ordered sequence)
+//! - [`TextCrdt`] - Collaborative text (thin wrapper over `Rga<char>`)
 //!
 //! ## The `Crdt` Trait
 //!
@@ -61,14 +66,17 @@
 
 extern crate alloc;
 
+mod aw_map;
 mod crdt;
 mod gcounter;
 mod gset;
+mod lww_map;
 mod lww_register;
 mod mv_register;
 mod or_set;
 mod pncounter;
-mod rga;
+/// Replicated Growable Array (RGA) — ordered sequence CRDT.
+pub mod rga;
 mod text;
 mod twop_set;
 mod version;
@@ -76,11 +84,12 @@ mod version;
 mod wasm;
 
 pub mod clock;
-pub mod events;
 pub mod prelude;
 
-pub use crdt::{Crdt, DeltaCrdt};
+pub use aw_map::{AWMap, AWMapDelta};
+pub use crdt::{Crdt, DeltaCrdt, NodeId};
 pub use gcounter::{GCounter, GCounterDelta};
+pub use lww_map::{LWWMap, LWWMapDelta};
 pub use gset::{GSet, GSetDelta};
 pub use lww_register::{LWWRegister, LWWRegisterDelta};
 pub use mv_register::{MVRegister, MVRegisterDelta};

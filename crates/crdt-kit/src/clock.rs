@@ -27,14 +27,20 @@
 
 use core::cmp;
 
+use crate::NodeId;
+
 /// A timestamp from a Hybrid Logical Clock.
 ///
 /// Consists of:
 /// - `physical`: milliseconds since Unix epoch (or any monotonic source)
 /// - `logical`: counter for events within the same physical millisecond
-/// - `node_id`: tiebreaker to ensure total ordering across nodes
+/// - `node_id`: tiebreaker to ensure total ordering across nodes (lower 16 bits of [`NodeId`])
 ///
 /// Total size: 12 bytes (u64 + u16 + u16).
+///
+/// **Note:** `node_id` uses only 16 bits for compact timestamps. When
+/// constructing from a [`NodeId`] (u64), only the lower 16 bits are used
+/// for tiebreaking. This is sufficient for up to 65 535 concurrent nodes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct HybridTimestamp {
@@ -42,7 +48,7 @@ pub struct HybridTimestamp {
     pub physical: u64,
     /// Logical counter for same-millisecond ordering.
     pub logical: u16,
-    /// Node identifier for deterministic tiebreaking.
+    /// Node identifier for deterministic tiebreaking (lower 16 bits of [`NodeId`]).
     pub node_id: u16,
 }
 
@@ -84,6 +90,10 @@ impl PartialOrd for HybridTimestamp {
 ///
 /// Call [`now`](HybridClock::now) to generate timestamps for local events.
 /// Call [`receive`](HybridClock::receive) when processing a remote timestamp.
+///
+/// Accepts a [`NodeId`] (u64) on construction. Only the lower 16 bits are
+/// embedded in generated timestamps for compact tiebreaking.
+#[derive(Debug, Clone)]
 pub struct HybridClock {
     node_id: u16,
     last: HybridTimestamp,
@@ -108,11 +118,14 @@ fn fallback_time_ms() -> u64 {
 impl HybridClock {
     /// Create a new clock for the given node.
     ///
+    /// Accepts a [`NodeId`] (u64). Only the lower 16 bits are embedded in
+    /// generated timestamps for compact tiebreaking.
+    ///
     /// On `std` targets, uses `SystemTime` for physical time.
     /// On `no_std` targets, use [`with_time_source`](Self::with_time_source).
-    pub fn new(node_id: u16) -> Self {
+    pub fn new(node_id: NodeId) -> Self {
         Self {
-            node_id,
+            node_id: node_id as u16,
             last: HybridTimestamp::zero(),
             #[cfg(feature = "std")]
             physical_time_fn: system_time_ms,
@@ -122,10 +135,13 @@ impl HybridClock {
     }
 
     /// Create a clock with a custom physical time source.
-    /// The function should return milliseconds (monotonic if possible).
-    pub fn with_time_source(node_id: u16, time_fn: fn() -> u64) -> Self {
+    ///
+    /// Accepts a [`NodeId`] (u64). Only the lower 16 bits are embedded in
+    /// generated timestamps. The function should return milliseconds
+    /// (monotonic if possible).
+    pub fn with_time_source(node_id: NodeId, time_fn: fn() -> u64) -> Self {
         Self {
-            node_id,
+            node_id: node_id as u16,
             last: HybridTimestamp::zero(),
             physical_time_fn: time_fn,
         }

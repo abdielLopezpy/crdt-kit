@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-03-10
+
+### Added
+
+- **LWWMap** — Last-writer-wins map with per-key `HybridTimestamp` resolution, tombstone-based removes
+- **AWMap** — Add-wins map with OR-Set key semantics (concurrent add beats remove)
+- **`Versioned` trait** — Schema versioning with `CrdtType` enum, implemented for all 11 CRDT types
+- **`VersionError`** type for versioned serialization errors
+- `IntoIterator` for `AWMap`
+- `HybridClock` now derives `Debug` and `Clone`
+- `#[cfg(feature = "std")] impl std::error::Error` for `RgaError`, `TextError`, `VersionError`
+- Memory footprint benchmarks (`bench_memory_footprint`) for 6 CRDT types
+- WASM bindings for LWWMap and AWMap operations
+
+### Changed
+
+- **BREAKING: `NodeId` is now `u64`** (was `String`) — zero heap allocations on every operation. Critical for embedded/IoT targets.
+- **BREAKING: `HybridClock::new()` accepts `NodeId` (u64)** — lower 16 bits used for timestamp tiebreaking, documented in API
+- **BREAKING: `Rga::remove()` returns `Result<T, RgaError>`** (was `Option<T>`) — proper error handling for out-of-bounds
+- **`LWWMap::remove()` no longer requires `V: Default`** — uses `Option<V>` internally for tombstones
+- **`LWWMap::iter()` uses `filter_map`** instead of `.filter().map(.unwrap())`
+- **RGA merge/apply_delta optimized** — two-phase approach (tombstones then inserts) eliminates O(k) per-insert index-shift loop. Total cost reduced from O(m·n + m²) to O(m·n).
+- `TextCrdt::remove_range()` simplified — removes from `start` index repeatedly (indices shift automatically)
+
+### Removed
+
+- Deleted `events.rs` placeholder module (was unreferenced one-line file)
+
+### Fixed
+
+- `compact_tombstones()` documentation now accurately describes behavior (local-only GC, safe at any time)
+- WASM binding `WasmLWWRegister::new()` now correctly converts `u16` node_id to `NodeId` (u64)
+
 ## [0.4.0-beta.1] - 2026-03-09
 
 ### Changed
@@ -24,7 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - List insert: **62x** faster than Yrs, **130x** faster than Automerge
   - Set insert: **136x** faster than Automerge
 - New dev-dependencies: `automerge = "0.7"`, `yrs = "0.25"` (bench only)
-- Property-based tests (`proptest`) for all 9 CRDT types — 32 tests covering commutativity, associativity, idempotency, and delta equivalence
+- Property-based tests (`proptest`) for 9 CRDT types — 32 tests covering commutativity, associativity, idempotency, and delta equivalence
 
 ## [0.4.0] - 2026-03-05
 
@@ -121,7 +154,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive test suite
 - Benchmark suite comparing operations
 
-[Unreleased]: https://github.com/crdt-kit/crdt-kit/compare/v0.4.0-beta.1...HEAD
+[Unreleased]: https://github.com/crdt-kit/crdt-kit/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/crdt-kit/crdt-kit/compare/v0.4.0-beta.1...v0.5.0
 [0.4.0-beta.1]: https://github.com/crdt-kit/crdt-kit/compare/v0.4.0...v0.4.0-beta.1
 [0.4.0]: https://github.com/crdt-kit/crdt-kit/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/crdt-kit/crdt-kit/compare/v0.2.1...v0.3.0

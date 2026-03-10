@@ -4,7 +4,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! crdt-kit = { version = "0.2", features = ["wasm"] }
+//! crdt-kit = { version = "0.5", features = ["wasm"] }
 //! ```
 //!
 //! All types are exposed as JavaScript classes with ergonomic APIs.
@@ -23,9 +23,9 @@ pub struct WasmGCounter {
 
 #[wasm_bindgen(js_class = GCounter)]
 impl WasmGCounter {
-    /// Create a new G-Counter with the given actor ID.
+    /// Create a new G-Counter with the given node ID.
     #[wasm_bindgen(constructor)]
-    pub fn new(actor: &str) -> Self {
+    pub fn new(actor: u64) -> Self {
         Self {
             inner: crate::GCounter::new(actor),
         }
@@ -63,9 +63,9 @@ pub struct WasmPNCounter {
 
 #[wasm_bindgen(js_class = PNCounter)]
 impl WasmPNCounter {
-    /// Create a new PN-Counter with the given actor ID.
+    /// Create a new PN-Counter with the given node ID.
     #[wasm_bindgen(constructor)]
-    pub fn new(actor: &str) -> Self {
+    pub fn new(actor: u64) -> Self {
         Self {
             inner: crate::PNCounter::new(actor),
         }
@@ -98,31 +98,27 @@ impl WasmPNCounter {
 #[wasm_bindgen(js_name = LWWRegister)]
 pub struct WasmLWWRegister {
     inner: crate::LWWRegister<String>,
+    clock: crate::clock::HybridClock,
 }
 
 #[wasm_bindgen(js_class = LWWRegister)]
 impl WasmLWWRegister {
-    /// Create a new LWW-Register with an explicit timestamp.
+    /// Create a new LWW-Register.
     #[wasm_bindgen(constructor)]
-    pub fn new(actor: &str, value: &str, timestamp: u64) -> Self {
-        Self {
-            inner: crate::LWWRegister::with_timestamp(actor, value.to_string(), timestamp),
-        }
+    pub fn new(node_id: u16, value: &str) -> Self {
+        let mut clock = crate::clock::HybridClock::new(node_id as u64);
+        let inner = crate::LWWRegister::new(value.to_string(), &mut clock);
+        Self { inner, clock }
     }
 
-    /// Update the register's value with a timestamp.
-    pub fn set(&mut self, value: &str, timestamp: u64) {
-        self.inner.set_with_timestamp(value.to_string(), timestamp);
+    /// Update the register's value.
+    pub fn set(&mut self, value: &str) {
+        self.inner.set(value.to_string(), &mut self.clock);
     }
 
     /// Get the current value.
     pub fn value(&self) -> String {
         self.inner.value().clone()
-    }
-
-    /// Get the current timestamp.
-    pub fn timestamp(&self) -> u64 {
-        self.inner.timestamp()
     }
 
     /// Merge another LWW-Register's state into this one.
@@ -181,7 +177,7 @@ impl WasmGSet {
         self.inner.merge(&other.inner);
     }
 
-    /// Get all elements as a JSON array string.
+    /// Get all elements as a JavaScript array.
     #[wasm_bindgen(js_name = toArray)]
     pub fn to_array(&self) -> Box<[JsValue]> {
         self.inner
@@ -202,9 +198,9 @@ pub struct WasmORSet {
 
 #[wasm_bindgen(js_class = ORSet)]
 impl WasmORSet {
-    /// Create a new empty OR-Set for the given actor.
+    /// Create a new empty OR-Set for the given node.
     #[wasm_bindgen(constructor)]
-    pub fn new(actor: &str) -> Self {
+    pub fn new(actor: u64) -> Self {
         Self {
             inner: crate::ORSet::new(actor),
         }
@@ -262,9 +258,9 @@ pub struct WasmTextCrdt {
 
 #[wasm_bindgen(js_class = TextCrdt)]
 impl WasmTextCrdt {
-    /// Create a new empty text CRDT for the given actor.
+    /// Create a new empty text CRDT for the given node.
     #[wasm_bindgen(constructor)]
-    pub fn new(actor: &str) -> Self {
+    pub fn new(actor: u64) -> Self {
         Self {
             inner: crate::TextCrdt::new(actor),
         }
@@ -272,18 +268,18 @@ impl WasmTextCrdt {
 
     /// Insert a single character at the given visible position.
     pub fn insert(&mut self, pos: usize, ch: char) {
-        self.inner.insert(pos, ch);
+        let _ = self.inner.insert(pos, ch);
     }
 
     /// Insert a string at the given visible position.
     #[wasm_bindgen(js_name = insertStr)]
     pub fn insert_str(&mut self, pos: usize, text: &str) {
-        self.inner.insert_str(pos, text);
+        let _ = self.inner.insert_str(pos, text);
     }
 
     /// Remove the character at the given visible position.
     pub fn remove(&mut self, pos: usize) {
-        self.inner.remove(pos);
+        let _ = self.inner.remove(pos);
     }
 
     /// Get the current visible text.

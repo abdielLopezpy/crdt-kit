@@ -5,11 +5,9 @@ use crdt_kit::prelude::*;
 fn main() {
     println!("=== Collaborative Todo List (OR-Set) ===\n");
 
-    // Alice and Bob each have a replica of the shared todo list
-    let mut alice = ORSet::new("alice");
-    let mut bob = ORSet::new("bob");
+    let mut alice = ORSet::new(1);
+    let mut bob = ORSet::new(2);
 
-    // Alice adds tasks while offline
     alice.insert("Buy groceries");
     alice.insert("Walk the dog");
     alice.insert("Write report");
@@ -18,15 +16,13 @@ fn main() {
         println!("  - {item}");
     }
 
-    // Bob adds tasks while offline
     bob.insert("Fix bike");
-    bob.insert("Buy groceries"); // same task, added independently
+    bob.insert("Buy groceries");
     println!("\nBob's list:");
     for item in bob.iter() {
         println!("  - {item}");
     }
 
-    // They sync up
     alice.merge(&bob);
     bob.merge(&alice);
 
@@ -36,14 +32,11 @@ fn main() {
         println!("  - {item}");
     }
 
-    // Alice completes a task
     alice.remove(&"Buy groceries");
     println!("\nAlice completed 'Buy groceries'");
 
-    // Bob concurrently adds it back (didn't see the remove yet)
     bob.insert("Buy groceries");
 
-    // Sync again - add wins!
     alice.merge(&bob);
     println!("\nAfter sync (add wins):");
     println!(

@@ -1,0 +1,45 @@
+[package]
+name = "crdt-kit-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+arbitrary = { version = "1", features = ["derive"] }
+
+[dependencies.crdt-kit]
+path = ".."
+
+[[bin]]
+name = "fuzz_gcounter"
+path = "fuzz_targets/fuzz_gcounter.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_orset"
+path = "fuzz_targets/fuzz_orset.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_lww_map"
+path = "fuzz_targets/fuzz_lww_map.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_aw_map"
+path = "fuzz_targets/fuzz_aw_map.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_rga"
+path = "fuzz_targets/fuzz_rga.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_text"
+path = "fuzz_targets/fuzz_text.rs"
+doc = false
