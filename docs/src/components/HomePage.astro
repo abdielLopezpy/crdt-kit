@@ -4,6 +4,7 @@ import DeviceAnimation from './DeviceAnimation.astro';
 import MergeFlow from './MergeFlow.tsx';
 import CodeBlock from './CodeBlock.astro';
 import InteractiveDemo from './InteractiveDemo.tsx';
+import CoachingDemo from './CoachingDemo.tsx';
 
 interface Props { lang: Lang; }
 const { lang } = Astro.props;
@@ -596,6 +597,15 @@ const codeMigration = [
         </div>
       ))}
     </div>
+  </div>
+</section>
+
+<!-- ===== COACHING DEMO ===== -->
+<section class="py-20 px-6 bg-bg-alt" id="coaching">
+  <div class="max-w-6xl mx-auto">
+    <h2 class="text-3xl font-extrabold tracking-tight text-center mb-3">{t(lang, 'coaching.title')}</h2>
+    <p class="text-text-dim text-center max-w-xl mx-auto mb-10">{t(lang, 'coaching.sub')}</p>
+    <CoachingDemo client:visible lang={lang} />
   </div>
 </section>
 

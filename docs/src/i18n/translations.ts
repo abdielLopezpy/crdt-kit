@@ -96,6 +96,8 @@ const en = {
   'guar.idemd': 'Safe to retry. No duplicates.',
 
   'cli.title': 'Developer CLI',
+  'coaching.title': 'How Sync Coaching Works',
+  'coaching.sub': 'Watch CRDTs flow through the entire ecosystem — from offline edits to guaranteed convergence via the Sync Agent.',
   'cta.title': 'Start building offline-first',
   'footer.guide': 'Dev Guide',
 } as const;
@@ -195,6 +197,8 @@ const es: typeof en = {
   'guar.idemd': 'Seguro de reintentar. Sin duplicados.',
 
   'cli.title': 'CLI para Desarrolladores',
+  'coaching.title': 'Cómo Funciona el Coaching de Sync',
+  'coaching.sub': 'Observa cómo los CRDTs fluyen por todo el ecosistema — desde ediciones offline hasta convergencia garantizada via el Sync Agent.',
   'cta.title': 'Empieza a construir offline-first',
   'footer.guide': 'Guía Dev',
 };
